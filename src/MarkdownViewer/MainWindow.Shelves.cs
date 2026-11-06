@@ -16,6 +16,15 @@ public partial class MainWindow
     /// <summary>Tag of the "Rename this bookshelf" item in the shelf menu, used to enable or disable it.</summary>
     private const string RenameShelfMenuTag = "RenameShelf";
 
+    /// <summary>Tag of the "Include subfolders" item in the shelf menu (folder shelves only).</summary>
+    private const string IncludeSubfoldersMenuTag = "IncludeSubfolders";
+
+    /// <summary>Tag of the "Open the folder" item in the shelf menu (folder shelves only).</summary>
+    private const string OpenShelfFolderMenuTag = "OpenShelfFolder";
+
+    /// <summary>Tag of the context menu items that change a shelf's files by hand (sort, remove), which folder shelves do not allow.</summary>
+    private const string EditsShelfFilesMenuTag = "EditsShelfFiles";
+
     /// <summary>Tag of the "Delete this bookshelf" item in the shelf menu.</summary>
     private const string DeleteShelfMenuTag = "DeleteShelf";
 
@@ -56,6 +65,8 @@ public partial class MainWindow
         currentBookshelf = shelfToShow;
         RefreshShelfChooser();
         RefreshBookshelfList();
+        UpdateShelfEditingControls();
+        WatchCurrentShelfFolder();
         UpdatePropertiesPanel();
     }
 
@@ -125,6 +136,15 @@ public partial class MainWindow
             {
                 shelfMenuItem.IsEnabled = !currentBookshelf.IsStandardShelf;
             }
+            else if (shelfMenuItem.Tag is IncludeSubfoldersMenuTag)
+            {
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+                shelfMenuItem.IsChecked = currentBookshelf.IsFolderShelf && currentBookshelf.IncludeSubfolders;
+            }
+            else if (shelfMenuItem.Tag is OpenShelfFolderMenuTag)
+            {
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+            }
         }
 
         shelfMenu.PlacementTarget = ShelfMenuButton;
@@ -178,8 +198,11 @@ public partial class MainWindow
 
         int fileCount = currentBookshelf.Entries.Count;
         string fileCountText = fileCount == 1 ? "1 file" : $"{fileCount} files";
+        string whatHappensText = currentBookshelf.IsFolderShelf
+            ? $"It shows the folder {currentBookshelf.FolderPath}. The folder and its files are not touched."
+            : $"It holds {fileCountText}. The files themselves are not deleted from disk.";
         var userAnswer = MessageBox.Show(this,
-            $"Delete the bookshelf \"{currentBookshelf.Name}\"?\n\nIt holds {fileCountText}. The files themselves are not deleted from disk.",
+            $"Delete the bookshelf \"{currentBookshelf.Name}\"?\n\n{whatHappensText}",
             "Markdown Viewer", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (userAnswer != MessageBoxResult.Yes)
         {
@@ -206,8 +229,17 @@ public partial class MainWindow
             return;
         }
 
-        var otherShelves = appSettings.Bookshelves.Where(bookshelf => !ReferenceEquals(bookshelf, currentBookshelf)).ToList();
+        // Files can only be put on normal shelves; a folder shelf shows its folder.
+        var otherShelves = appSettings.Bookshelves
+            .Where(bookshelf => !ReferenceEquals(bookshelf, currentBookshelf) && !bookshelf.IsFolderShelf)
+            .ToList();
         bool hasSelection = SelectedBookshelfEntries.Count > 0;
+
+        // Sorting and removing make no sense on a folder shelf.
+        foreach (var editingMenuItem in bookshelfContextMenu.Items.OfType<MenuItem>().Where(menuItem => Equals(menuItem.Tag, EditsShelfFilesMenuTag)))
+        {
+            editingMenuItem.IsEnabled = !currentBookshelf.IsFolderShelf;
+        }
 
         foreach (var submenu in bookshelfContextMenu.Items.OfType<MenuItem>())
         {
@@ -218,7 +250,8 @@ public partial class MainWindow
             }
 
             submenu.Items.Clear();
-            submenu.IsEnabled = hasSelection;
+            // Moving would take the files off this shelf, which a folder shelf cannot do.
+            submenu.IsEnabled = hasSelection && !(isMoveSubmenu && currentBookshelf.IsFolderShelf);
 
             if (otherShelves.Count == 0)
             {

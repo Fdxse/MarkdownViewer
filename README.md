@@ -30,6 +30,10 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   creates, renames or deletes them (e.g. *Documentation*, *Post-its*). The **Standard** shelf always exists and is
   the one shown when the app starts. A file can be on several shelves: right-click → *Add to bookshelf* or
   *Move to bookshelf*. Each shelf keeps its own order. Deleting a shelf never deletes the files.
+- **Folder bookshelves** (⋯ → *New folder bookshelf...*): pick a folder and the shelf always lists every Markdown file
+  in it (`.md`, `.markdown`, ...), optionally including subfolders (⋯ → *Include subfolders*). Files that are added,
+  removed or renamed in the folder appear and disappear by themselves. The list is sorted by name; files cannot be
+  added or removed by hand there, but right-click → *Add to bookshelf* copies them to a normal shelf.
 - **Zip all** (File → Zip all): backs up every bookshelf file plus `settings.json` into a timestamped
   `MarkdownViewer-backup-<date>_<time>.zip` next to the exe (or a place you pick, if that folder is read-only).
   Files keep their original folder structure under `files/` (e.g. `files/C/Notes/README.md`), so files with the same

@@ -35,6 +35,8 @@ public partial class MainWindow
         // The Standard shelf is always the one shown when the app starts.
         currentBookshelf = appSettings.StandardBookshelf;
         RefreshShelfChooser();
+        UpdateShelfEditingControls();
+        WatchCurrentShelfFolder();
 
         ApplyAlphabeticalOrderOnFirstRun();
         SetBookshelfVisible(appSettings.IsBookshelfVisible);
@@ -95,11 +97,20 @@ public partial class MainWindow
     /// </summary>
     private void RefreshBookshelfList()
     {
+        // A folder shelf's files are read from its folder.
+        RescanCurrentFolderShelf();
+
         foreach (var bookshelfEntry in currentBookshelf.Entries)
         {
             bookshelfEntry.RefreshFileExists();
         }
 
+        ShowBookshelfEntries();
+    }
+
+    /// <summary>Puts the shown shelf's entries in the list (without re-checking the disk) and keeps the open file selected.</summary>
+    private void ShowBookshelfEntries()
+    {
         // A copy, so the list control is not tied to the settings list while it is being reordered.
         BookshelfList.ItemsSource = currentBookshelf.Entries.ToList();
 
@@ -133,6 +144,11 @@ public partial class MainWindow
     /// </summary>
     private int AddFilesToBookshelf(IEnumerable<string> filePaths)
     {
+        if (RejectChangeToFolderShelf())
+        {
+            return 0;
+        }
+
         int addedFileCount = 0;
         foreach (string filePath in filePaths)
         {
@@ -158,7 +174,7 @@ public partial class MainWindow
     /// <summary>Takes files off the bookshelf. The files on disk are not touched.</summary>
     private void RemoveFromBookshelf(IReadOnlyCollection<BookshelfEntry> entriesToRemove)
     {
-        if (entriesToRemove.Count == 0)
+        if (entriesToRemove.Count == 0 || RejectChangeToFolderShelf())
         {
             return;
         }
@@ -206,6 +222,12 @@ public partial class MainWindow
         string zipFilePath = Path.Combine(exeFolderPath, backupFileName);
 
         // Take a snapshot of what to back up on the UI thread; the zipping itself runs in the background.
+        // Folder shelves that are not shown may not have been read for a while, so read them now.
+        foreach (var folderShelf in appSettings.Bookshelves.Where(bookshelf => bookshelf.IsFolderShelf))
+        {
+            folderShelf.RescanFolder();
+        }
+
         // Files from every shelf; a file that is on several shelves goes into the zip once.
         List<string> bookshelfFilePaths = appSettings.Bookshelves
             .SelectMany(bookshelf => bookshelf.Entries)
@@ -615,7 +637,8 @@ public partial class MainWindow
     /// <summary>File → Add to bookshelf (Ctrl+D) is available when a saved file that is not on the shelf yet is open.</summary>
     private void AddToBookshelfCommand_CanExecute(object sender, CanExecuteRoutedEventArgs canExecuteDetails)
     {
-        canExecuteDetails.CanExecute = currentFilePath != null && !IsOnBookshelf(currentFilePath);
+        // Files cannot be added by hand to a shelf that shows a folder.
+        canExecuteDetails.CanExecute = currentFilePath != null && !currentBookshelf.IsFolderShelf && !IsOnBookshelf(currentFilePath);
     }
 
     /// <summary>File → Add to bookshelf (Ctrl+D): puts the open file on the shelf and shows the panel.</summary>
@@ -760,6 +783,13 @@ public partial class MainWindow
     {
         if (!appSettings.IsBookshelfVisible)
         {
+            return;
+        }
+
+        // A folder shelf is re-read, in case the folder watcher missed something (e.g. on a network drive).
+        if (currentBookshelf.IsFolderShelf)
+        {
+            RefreshFolderShelfAfterChange();
             return;
         }
 

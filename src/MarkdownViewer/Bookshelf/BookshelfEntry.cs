@@ -19,6 +19,20 @@ public class BookshelfEntry
     [JsonIgnore]
     public string FileName => Path.GetFileName(FilePath);
 
+    /// <summary>
+    /// Text shown in the list. Normally the file name; on a folder shelf with subfolders it includes the
+    /// subfolder (e.g. "2025\notes.md"). Not stored in the settings file.
+    /// </summary>
+    [JsonIgnore]
+    public string DisplayName
+    {
+        get => displayNameOverride ?? FileName;
+        set => displayNameOverride = value;
+    }
+
+    /// <summary>Set when the display name differs from the plain file name.</summary>
+    private string? displayNameOverride;
+
     /// <summary>Folder that holds the file, shown in grey under the file name.</summary>
     [JsonIgnore]
     public string FolderPath => Path.GetDirectoryName(FilePath) ?? string.Empty;

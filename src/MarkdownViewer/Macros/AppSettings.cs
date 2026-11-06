@@ -154,7 +154,12 @@ public class AppSettings
     /// <summary>The settings as indented JSON, exactly as <see cref="Save"/> writes them (also used by the zip backup).</summary>
     public string ToJson()
     {
-        return JsonSerializer.Serialize(this, JsonOptions);
+        // Folder shelves are saved without their files: those are read from the folder each time.
+        var settingsToWrite = (AppSettings)MemberwiseClone();
+        settingsToWrite.Bookshelves = Bookshelves
+            .Select(bookshelf => bookshelf.IsFolderShelf ? bookshelf.CloneWithoutEntries() : bookshelf)
+            .ToList();
+        return JsonSerializer.Serialize(settingsToWrite, JsonOptions);
     }
 
     /// <summary>Writes the settings file, creating its folder if needed. Throws on failure.</summary>
