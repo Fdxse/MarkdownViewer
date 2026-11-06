@@ -45,6 +45,7 @@
 
   <ItemGroup>
     <!-- Markdown parser (BSD-2-Clause licensed), approved by the project owner -->
+    <PackageReference Include="ColorCode.Core" Version="2.0.15" />
     <PackageReference Include="Markdig" Version="1.4.2" />
     <!-- Microsoft Edge WebView2 SDK (BSD-style license), approved by the project owner; runs mermaid.js to draw ```mermaid diagrams -->
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />

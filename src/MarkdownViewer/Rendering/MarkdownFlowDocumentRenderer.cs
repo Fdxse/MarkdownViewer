@@ -250,7 +250,10 @@ public sealed class MarkdownFlowDocumentRenderer
         return textParagraph;
     }
 
-    /// <summary>Renders an indented or fenced code block (``` ... ```) with a grey background.</summary>
+    /// <summary>
+    /// Renders an indented or fenced code block (``` ... ```) with a grey background.
+    /// Fenced blocks with a known language (```csharp, ```sql, ```json ...) get syntax colouring.
+    /// </summary>
     private Paragraph RenderCodeBlock(CodeBlock codeBlock)
     {
         var codeParagraph = new Paragraph
@@ -265,8 +268,24 @@ public sealed class MarkdownFlowDocumentRenderer
             BorderThickness = new Thickness(1),
         };
 
-        // Each source line becomes a Run, separated by explicit line breaks.
         var codeLines = codeBlock.Lines;
+
+        // Fenced block with a language ColorCode knows: colour it. Math blocks are never coloured.
+        if (codeBlock is FencedCodeBlock fencedCodeBlock && codeBlock is not MathBlock)
+        {
+            var codeLanguage = CodeSyntaxHighlighter.FindLanguage(fencedCodeBlock.Info);
+            if (codeLanguage != null)
+            {
+                string codeText = string.Join("\n", Enumerable.Range(0, codeLines.Count)
+                    .Select(lineIndex => codeLines.Lines[lineIndex].Slice.ToString()));
+                if (CodeSyntaxHighlighter.TryAppendHighlightedCode(codeParagraph, codeText, codeLanguage))
+                {
+                    return codeParagraph;
+                }
+            }
+        }
+
+        // Plain code: each source line becomes a Run, separated by explicit line breaks.
         for (int lineIndex = 0; lineIndex < codeLines.Count; lineIndex++)
         {
             if (lineIndex > 0)

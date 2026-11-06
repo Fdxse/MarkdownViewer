@@ -70,6 +70,9 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   for the open document. The numbers follow along while you edit.
 
 Supported Markdown: CommonMark plus tables, task lists, strikethrough, footnotes, emoji and auto-linked URLs.
+**Code coloring**: fenced code blocks with a language (```` ```csharp ````, `cs`, `sql`, `json`, `xml`, `html`, `js`, `ts`,
+`powershell`, `python`, `css`, `vb`, `fsharp`, `cpp`, `java`, `php` and a few more) get syntax colors. Other languages
+and blocks without a language are shown as plain code.
 **Mermaid diagrams**: a ```` ```mermaid ```` code block is drawn as a diagram (flowcharts, sequence, class, state, ER,
 Gantt, pie, mindmaps and the rest of Mermaid). This uses the Microsoft Edge WebView2 Runtime that comes with
 Windows 10 and 11, started invisibly only when a document has a diagram. mermaid.js is built into the exe, so it
@@ -89,6 +92,7 @@ dotnet publish src/MarkdownViewer -c Release -o publish   # produces publish/Mar
 ## Dependencies
 
 - [Markdig](https://github.com/xoofx/markdig) (BSD-2-Clause) for parsing Markdown. Rendering into native WPF is done in `src/MarkdownViewer/Rendering`.
+- [ColorCode.Core](https://github.com/CommunityToolkit/ColorCode-Universal) (MIT) for syntax coloring in code blocks.
 - [Microsoft.Data.SqlClient](https://github.com/dotnet/SqlClient) (MIT) to run the saved queries on query bookshelves.
 - [Microsoft.Web.WebView2](https://www.nuget.org/packages/Microsoft.Web.WebView2) (BSD-style) to run mermaid.js for diagrams.
 - [Mermaid](https://mermaid.js.org) 12.3.0 (MIT), bundled as `src/MarkdownViewer/Assets/Mermaid/mermaid.min.js`.
