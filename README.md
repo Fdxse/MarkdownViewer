@@ -17,6 +17,8 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
 - **Macros** (Tools → Macros): typing a trigger in the editor and then a space, Enter or punctuation replaces it with a template.
   `{n}` stands for a number, so the default macro turns `@730` into `[Task 730](https://devops/dev/_workitem_edit/730)`.
   Ctrl+Z undoes an expansion. Macros are stored in `%APPDATA%\MarkdownViewer\settings.json`.
+- **Links** menu: your own list of name + URL shortcuts that open in the default browser.
+  Add, edit, reorder or remove them under Links → Edit links. Stored in the same `settings.json`.
 
 - **Bookshelf** (left panel, **Ctrl+B** to show or hide): collect Markdown files from anywhere on disk in one list.
   Add them with **Add...**, **Ctrl+D** (adds the open file), or by dropping files or a folder onto the panel.

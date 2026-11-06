@@ -63,6 +63,8 @@
                 <!-- Text macros such as "@730" that expand while typing in the editor -->
                 <MenuItem Header="_Macros..." Click="MacroSettingsMenuItem_Click" />
             </MenuItem>
+            <!-- Saved links that open in the default browser. Filled from the settings in code (RebuildLinksMenu). -->
+            <MenuItem x:Name="LinksMenu" Header="_Links" />
         </Menu>
 
         <!-- Status bar along the bottom -->

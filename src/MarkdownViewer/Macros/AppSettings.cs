@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using MarkdownViewer.Links;
 using MarkdownViewer.Bookshelf;
 
 namespace MarkdownViewer.Macros;
@@ -27,6 +28,8 @@ public class AppSettings
     /// <summary>Text macros that are expanded while typing in the editor.</summary>
     public List<MacroDefinition> Macros { get; set; } = new();
 
+    /// <summary>Saved name + URL entries shown in the Links menu.</summary>
+    public List<SavedLink> Links { get; set; } = new();
     /// <summary>Markdown files collected on the bookshelf, from anywhere on disk.</summary>
     public List<BookshelfEntry> BookshelfEntries { get; set; } = new();
 
@@ -67,6 +70,8 @@ public class AppSettings
             var loadedSettings = JsonSerializer.Deserialize<AppSettings>(settingsJson, JsonOptions) ?? CreateDefaults();
             // A file with "Macros": null should not crash the editor later on.
             loadedSettings.Macros ??= new List<MacroDefinition>();
+            // Same for "Links": null (older settings files have no Links entry at all, which is fine too).
+            loadedSettings.Links ??= new List<SavedLink>();
             loadedSettings.BookshelfEntries ??= new List<BookshelfEntry>();
             // Drop entries without a path, e.g. from a hand-edited file.
             loadedSettings.BookshelfEntries.RemoveAll(bookshelfEntry => bookshelfEntry == null || string.IsNullOrWhiteSpace(bookshelfEntry.FilePath));

@@ -43,4 +43,6 @@ The file is watched while open: if another program changes it, the view refreshe
 **Macros:** in the editor, type `@730` followed by a space and it becomes a link to task 730.
 Change or add macros under **Tools → Macros**.
 
+**Links:** keep the sites you use often under the **Links** menu. Add them with **Links → Edit links**.
+
 [^1]: Footnotes appear at the bottom of the document.

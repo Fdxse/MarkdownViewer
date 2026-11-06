@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using MarkdownViewer.Links;
 using MarkdownViewer.Bookshelf;
 using MarkdownViewer.Macros;
 using MarkdownViewer.Rendering;
@@ -75,6 +76,7 @@ public partial class MainWindow : Window
         // Load the macros. A broken settings file should not stop the app, so fall back to defaults.
         appSettings = AppSettings.Load(out string? settingsLoadError);
         macroExpander = new MacroExpander(appSettings.Macros);
+        RebuildLinksMenu();
         if (settingsLoadError != null)
         {
             MessageBox.Show(settingsLoadError + "\n\nThe default macros are used for now.",
@@ -636,6 +638,66 @@ public partial class MainWindow : Window
         {
             // The new macros still work for this session even if they could not be stored.
             MessageBox.Show(this, $"The macros are active now, but could not be saved:\n{AppSettings.SettingsFilePath}\n\n{saveError.Message}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Links menu
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Fills the Links menu: one item per saved link, then "Edit links..." at the bottom.
+    /// Called at startup and whenever the links have been edited.
+    /// </summary>
+    private void RebuildLinksMenu()
+    {
+        LinksMenu.Items.Clear();
+
+        foreach (var savedLink in appSettings.Links)
+        {
+            var linkMenuItem = new MenuItem
+            {
+                // A single "_" in a menu header marks the access key, so double it to show it literally.
+                Header = savedLink.Name.Replace("_", "__"),
+                ToolTip = savedLink.Url,
+            };
+            linkMenuItem.Click += (_, _) => OpenWithDefaultProgram(savedLink.GetOpenableAddress());
+            LinksMenu.Items.Add(linkMenuItem);
+        }
+
+        // Without any links, show a disabled hint so the menu does not look broken.
+        if (appSettings.Links.Count == 0)
+        {
+            LinksMenu.Items.Add(new MenuItem { Header = "(no saved links yet)", IsEnabled = false });
+        }
+
+        LinksMenu.Items.Add(new Separator());
+        var editLinksMenuItem = new MenuItem { Header = "_Edit links..." };
+        editLinksMenuItem.Click += EditLinksMenuItem_Click;
+        LinksMenu.Items.Add(editLinksMenuItem);
+    }
+
+    /// <summary>Links → Edit links: lets the user edit the saved links and stores them in the settings file.</summary>
+    private void EditLinksMenuItem_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        var linkSettingsWindow = new LinkSettingsWindow(appSettings.Links) { Owner = this };
+        if (linkSettingsWindow.ShowDialog() != true)
+        {
+            return;
+        }
+
+        appSettings.Links = linkSettingsWindow.EditedLinks;
+        RebuildLinksMenu();
+
+        try
+        {
+            appSettings.Save();
+        }
+        catch (Exception saveError)
+        {
+            // The new links still show in the menu for this session even if they could not be stored.
+            MessageBox.Show(this, $"The links are updated now, but could not be saved:\n{AppSettings.SettingsFilePath}\n\n{saveError.Message}",
                 "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
