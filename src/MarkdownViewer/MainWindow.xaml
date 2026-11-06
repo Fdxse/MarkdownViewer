@@ -42,6 +42,8 @@
                 <Separator />
                 <MenuItem Header="Add to _bookshelf" Command="local:AppCommands.AddToBookshelf" />
                 <MenuItem Header="Add files to boo_kshelf..." Click="AddFilesToBookshelfButton_Click" />
+                <!-- Backup: zips every bookshelf file plus settings.json into a timestamped zip next to the exe -->
+                <MenuItem Header="_Zip all (backup bookshelf and settings)" Click="ZipAllMenuItem_Click" />
                 <Separator />
                 <MenuItem Header="_Save" Command="ApplicationCommands.Save" />
                 <MenuItem Header="Save _As..." Command="ApplicationCommands.SaveAs" InputGestureText="Ctrl+Shift+S" />
