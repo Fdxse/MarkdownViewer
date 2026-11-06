@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using MarkdownViewer.Links;
 
 namespace MarkdownViewer.Macros;
 
@@ -25,6 +26,9 @@ public class AppSettings
 
     /// <summary>Text macros that are expanded while typing in the editor.</summary>
     public List<MacroDefinition> Macros { get; set; } = new();
+
+    /// <summary>Saved name + URL entries shown in the Links menu.</summary>
+    public List<SavedLink> Links { get; set; } = new();
 
     /// <summary>Settings used the first time the app runs: one example macro for work item links.</summary>
     public static AppSettings CreateDefaults() => new()
@@ -57,6 +61,8 @@ public class AppSettings
             var loadedSettings = JsonSerializer.Deserialize<AppSettings>(settingsJson, JsonOptions) ?? CreateDefaults();
             // A file with "Macros": null should not crash the editor later on.
             loadedSettings.Macros ??= new List<MacroDefinition>();
+            // Same for "Links": null (older settings files have no Links entry at all, which is fine too).
+            loadedSettings.Links ??= new List<SavedLink>();
             return loadedSettings;
         }
         catch (Exception readError)

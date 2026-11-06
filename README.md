@@ -17,6 +17,8 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
 - **Macros** (Tools → Macros): typing a trigger in the editor and then a space, Enter or punctuation replaces it with a template.
   `{n}` stands for a number, so the default macro turns `@730` into `[Task 730](https://devops/dev/_workitem_edit/730)`.
   Ctrl+Z undoes an expansion. Macros are stored in `%APPDATA%\MarkdownViewer\settings.json`.
+- **Links** menu: your own list of name + URL shortcuts that open in the default browser.
+  Add, edit, reorder or remove them under Links → Edit links. Stored in the same `settings.json`.
 
 Supported Markdown: CommonMark plus tables, task lists, strikethrough, footnotes, emoji and auto-linked URLs.
 Raw HTML is shown as source text, and SVG images are not supported (their alt text is shown instead).
