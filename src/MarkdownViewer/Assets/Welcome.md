@@ -33,6 +33,14 @@ Open a Markdown file with **File → Open** (Ctrl+O), or drag and drop one onto 
 Console.WriteLine("Hello, Markdown!");
 ```
 
+Mermaid code blocks are drawn as diagrams:
+
+```mermaid
+flowchart LR
+    Write[Write Markdown] --> View[View it here]
+    View --> Share[Share the file]
+```
+
 ---
 
 ## Tips
