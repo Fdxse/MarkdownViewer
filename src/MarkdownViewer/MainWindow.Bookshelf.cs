@@ -31,6 +31,7 @@ public partial class MainWindow
     {
         bookshelfWidthBeforeHiding = Math.Max(appSettings.BookshelfPanelWidth, BookshelfMinimumWidth);
         BookshelfColumn.Width = new GridLength(bookshelfWidthBeforeHiding);
+        ApplyAlphabeticalOrderOnFirstRun();
         SetBookshelfVisible(appSettings.IsBookshelfVisible);
         RefreshBookshelfList();
     }
@@ -84,7 +85,7 @@ public partial class MainWindow
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Rebuilds the list from the settings: sorted by file name, with missing files re-checked.
+    /// Rebuilds the list from the settings, in the user's own order, with missing files re-checked.
     /// Keeps the open file selected.
     /// </summary>
     private void RefreshBookshelfList()
@@ -94,10 +95,8 @@ public partial class MainWindow
             bookshelfEntry.RefreshFileExists();
         }
 
-        BookshelfList.ItemsSource = appSettings.BookshelfEntries
-            .OrderBy(bookshelfEntry => bookshelfEntry.FileName, StringComparer.CurrentCultureIgnoreCase)
-            .ThenBy(bookshelfEntry => bookshelfEntry.FolderPath, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
+        // A copy, so the list control is not tied to the settings list while it is being reordered.
+        BookshelfList.ItemsSource = appSettings.BookshelfEntries.ToList();
 
         BookshelfEmptyHint.Visibility = appSettings.BookshelfEntries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         SelectOpenFileInBookshelf();
@@ -664,9 +663,20 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Enter opens the selected file, Delete takes the selected files off the shelf.</summary>
+    /// <summary>
+    /// Enter opens the selected file, Delete takes the selected files off the shelf,
+    /// Alt+Up / Alt+Down move the selected file up or down the list.
+    /// </summary>
     private void BookshelfList_KeyDown(object sender, KeyEventArgs keyDetails)
     {
+        // With Alt held, WPF reports the key as Key.System and the real key in SystemKey.
+        if (keyDetails.Key == Key.System && keyDetails.SystemKey is Key.Up or Key.Down)
+        {
+            MoveSelectedBookshelfEntryByOneStep(keyDetails.SystemKey == Key.Up ? -1 : +1);
+            keyDetails.Handled = true;
+            return;
+        }
+
         if (keyDetails.Key == Key.Enter && BookshelfList.SelectedItem is BookshelfEntry selectedEntry)
         {
             OpenBookshelfEntry(selectedEntry);

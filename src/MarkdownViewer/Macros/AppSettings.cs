@@ -40,6 +40,12 @@ public class AppSettings
     public double BookshelfPanelWidth { get; set; } = 280;
 
     /// <summary>
+    /// True once the bookshelf is shown in its stored order (which the user arranges by drag and drop).
+    /// False for settings from older versions, which always sorted the list by name.
+    /// </summary>
+    public bool HasCustomBookshelfOrder { get; set; }
+
+    /// <summary>
     /// Heading of the section in todo.md that new tasks are added to (Todo → Add task). Added if missing.
     /// </summary>
     public string TodoSectionHeading { get; set; } = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
