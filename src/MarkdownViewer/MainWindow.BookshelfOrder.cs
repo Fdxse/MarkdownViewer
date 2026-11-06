@@ -56,16 +56,16 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>Sorts the stored bookshelf by file name (then by folder for files with the same name).</summary>
+    /// <summary>Sorts the files on the shown shelf by file name (then by folder for files with the same name).</summary>
     private void SortBookshelfEntriesByName()
     {
-        var sortedEntries = appSettings.BookshelfEntries
+        var sortedEntries = currentBookshelf.Entries
             .OrderBy(bookshelfEntry => bookshelfEntry.FileName, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(bookshelfEntry => bookshelfEntry.FolderPath, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
-        appSettings.BookshelfEntries.Clear();
-        appSettings.BookshelfEntries.AddRange(sortedEntries);
+        currentBookshelf.Entries.Clear();
+        currentBookshelf.Entries.AddRange(sortedEntries);
     }
 
     /// <summary>
@@ -76,7 +76,7 @@ public partial class MainWindow
     /// <param name="placeBelowTarget">True to put it just below the target, false for just above.</param>
     private void MoveBookshelfEntry(BookshelfEntry movedEntry, BookshelfEntry targetEntry, bool placeBelowTarget)
     {
-        List<BookshelfEntry> bookshelfEntries = appSettings.BookshelfEntries;
+        List<BookshelfEntry> bookshelfEntries = currentBookshelf.Entries;
         if (ReferenceEquals(movedEntry, targetEntry) || !bookshelfEntries.Contains(movedEntry) || !bookshelfEntries.Contains(targetEntry))
         {
             return;
@@ -104,14 +104,14 @@ public partial class MainWindow
             return;
         }
 
-        int currentIndex = appSettings.BookshelfEntries.IndexOf(selectedEntry);
+        int currentIndex = currentBookshelf.Entries.IndexOf(selectedEntry);
         int neighbourIndex = currentIndex + stepDirection;
-        if (currentIndex < 0 || neighbourIndex < 0 || neighbourIndex >= appSettings.BookshelfEntries.Count)
+        if (currentIndex < 0 || neighbourIndex < 0 || neighbourIndex >= currentBookshelf.Entries.Count)
         {
             return; // already at the top or bottom
         }
 
-        BookshelfEntry neighbourEntry = appSettings.BookshelfEntries[neighbourIndex];
+        BookshelfEntry neighbourEntry = currentBookshelf.Entries[neighbourIndex];
         MoveBookshelfEntry(selectedEntry, neighbourEntry, placeBelowTarget: stepDirection > 0);
 
         // Keep the keyboard focus on the moved item so Alt+Up/Down can be pressed repeatedly.
@@ -235,7 +235,7 @@ public partial class MainWindow
             return;
         }
 
-        BookshelfEntry? draggedEntry = appSettings.BookshelfEntries.FirstOrDefault(bookshelfEntry => bookshelfEntry.HasPath(draggedFilePath));
+        BookshelfEntry? draggedEntry = currentBookshelf.Entries.FirstOrDefault(bookshelfEntry => bookshelfEntry.HasPath(draggedFilePath));
         if (draggedEntry == null)
         {
             return;
