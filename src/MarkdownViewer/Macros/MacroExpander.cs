@@ -14,6 +14,9 @@ public class MacroExpander
     /// <summary>The placeholder in triggers and replacements that stands for a number.</summary>
     public const string NumberPlaceholder = "{n}";
 
+    /// <summary>Characters that end a macro trigger and make it expand (besides whitespace, which always does).</summary>
+    public const string TerminatorCharacters = ".,;:!?)]";
+
     /// <summary>Name of the regex group that captures the typed number.</summary>
     private const string NumberGroupName = "number";
 
@@ -101,5 +104,45 @@ public class MacroExpander
         triggerLength = 0;
         expandedText = string.Empty;
         return false;
+    }
+
+    /// <summary>
+    /// Expands every macro trigger in a finished piece of text, e.g. "Fix @730" → "Fix [Task 730](...)".
+    /// Unlike typing, a trigger at the very end of the text counts too, since no separator follows it.
+    /// The replacements are not searched again, so a replacement never triggers another macro.
+    /// </summary>
+    public string ExpandAll(string inputText)
+    {
+        if (!HasMacros || string.IsNullOrEmpty(inputText))
+        {
+            return inputText;
+        }
+
+        var expandedTextBuilder = new System.Text.StringBuilder();
+        // Everything before this index has already been copied (or replaced) into the result.
+        int copiedUpToIndex = 0;
+
+        // A trigger can only end where a word ends: before whitespace, a terminator, or the end of the text.
+        for (int wordEndIndex = 1; wordEndIndex <= inputText.Length; wordEndIndex++)
+        {
+            bool isWordEnd = wordEndIndex == inputText.Length
+                || char.IsWhiteSpace(inputText[wordEndIndex])
+                || TerminatorCharacters.Contains(inputText[wordEndIndex]);
+            if (!isWordEnd)
+            {
+                continue;
+            }
+
+            if (TryExpandAtEnd(inputText[..wordEndIndex], out int triggerStartIndex, out _, out string expandedText)
+                && triggerStartIndex >= copiedUpToIndex)
+            {
+                expandedTextBuilder.Append(inputText, copiedUpToIndex, triggerStartIndex - copiedUpToIndex);
+                expandedTextBuilder.Append(expandedText);
+                copiedUpToIndex = wordEndIndex;
+            }
+        }
+
+        expandedTextBuilder.Append(inputText, copiedUpToIndex, inputText.Length - copiedUpToIndex);
+        return expandedTextBuilder.ToString();
     }
 }

@@ -64,7 +64,7 @@ public partial class MainWindow : Window
     private MacroExpander macroExpander;
 
     /// <summary>Characters that end a macro trigger and make it expand (besides whitespace, which always does).</summary>
-    private const string MacroTerminatorCharacters = ".,;:!?)]";
+    private const string MacroTerminatorCharacters = MacroExpander.TerminatorCharacters;
 
     /// <summary>
     /// Creates the main window and opens the given file, or shows the welcome page if none is given.

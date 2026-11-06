@@ -33,7 +33,7 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   **Ctrl+Shift+T** asks for a task and adds `- [ ] task` at the top of the section *Todo → Section for new tasks*
   (default `## Todo`; matched by heading text, added at the end of the file if missing). If the section already has
   tasks, the new one goes directly above the first of them, so text you put between the heading and the list stays put.
-  Nothing else in the file is touched. **Ctrl+T** opens the list. Zip all includes `todo.md` too.
+  Nothing else in the file is touched. Macros (e.g. `@730`) expand in the task text too. **Ctrl+T** opens the list. Zip all includes `todo.md` too.
 - **Task check boxes** in any document are clickable: ticking one changes `[ ]` to `[x]` (or back) in the file
   and saves it straight away.
 - **Properties** (under the bookshelf): location, size, created and modified dates, characters, words, lines,

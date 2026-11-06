@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using MarkdownViewer.Macros;
 
 namespace MarkdownViewer.Todo;
 
@@ -12,15 +13,24 @@ public sealed class TextPromptWindow : Window
     /// <summary>The box the user types into.</summary>
     private readonly TextBox answerTextBox;
 
-    /// <summary>What the user typed (read after <see cref="Window.ShowDialog"/> returned true).</summary>
-    public string AnswerText => answerTextBox.Text;
+    /// <summary>Expands macros such as "@730" in the typed text; null when macros should not apply.</summary>
+    private readonly MacroExpander? macroExpander;
+
+    /// <summary>
+    /// What the user typed (read after <see cref="Window.ShowDialog"/> returned true).
+    /// Any macro trigger still left in it, e.g. "@730" typed last with nothing after it, is expanded too.
+    /// </summary>
+    public string AnswerText => macroExpander?.ExpandAll(answerTextBox.Text) ?? answerTextBox.Text;
 
     /// <summary>Creates the dialog.</summary>
     /// <param name="windowTitle">Title bar text.</param>
     /// <param name="promptText">Explanation shown above the text box.</param>
     /// <param name="initialText">Text already in the box (selected, so typing replaces it).</param>
-    public TextPromptWindow(string windowTitle, string promptText, string initialText)
+    /// <param name="macroExpander">If given, macros expand while typing in the box, the same way as in the editor.</param>
+    public TextPromptWindow(string windowTitle, string promptText, string initialText, MacroExpander? macroExpander = null)
     {
+        this.macroExpander = macroExpander;
+
         Title = windowTitle;
         Width = 460;
         SizeToContent = SizeToContent.Height;
@@ -40,6 +50,7 @@ public sealed class TextPromptWindow : Window
             Text = initialText,
             Padding = new Thickness(3),
         };
+        answerTextBox.TextChanged += AnswerTextBox_TextChanged;
 
         // Enter = OK (IsDefault), Esc = Cancel (IsCancel).
         var okButton = new Button { Content = "OK", IsDefault = true, MinWidth = 80, Padding = new Thickness(10, 3, 10, 3) };
@@ -67,5 +78,56 @@ public sealed class TextPromptWindow : Window
             answerTextBox.Focus();
             answerTextBox.SelectAll();
         };
+    }
+
+    /// <summary>
+    /// Expands a macro as soon as the user types a space or punctuation right after its trigger
+    /// (e.g. "@730 "), so the result is visible before pressing OK. Ctrl+Z undoes the expansion.
+    /// </summary>
+    private void AnswerTextBox_TextChanged(object sender, TextChangedEventArgs changeDetails)
+    {
+        if (macroExpander == null || !macroExpander.HasMacros || changeDetails.Changes.Count != 1)
+        {
+            return;
+        }
+
+        // Only react to plain typing of one character (not a paste or a replacement).
+        var textChange = changeDetails.Changes.First();
+        if (textChange.RemovedLength != 0 || textChange.AddedLength != 1 || textChange.Offset == 0)
+        {
+            return;
+        }
+
+        string boxText = answerTextBox.Text;
+        int typedCharacterIndex = textChange.Offset;
+        char typedCharacter = boxText[typedCharacterIndex];
+        if (!char.IsWhiteSpace(typedCharacter) && !MacroExpander.TerminatorCharacters.Contains(typedCharacter))
+        {
+            return;
+        }
+
+        if (!macroExpander.TryExpandAtEnd(boxText[..typedCharacterIndex], out int triggerStartIndex, out int triggerLength, out string expandedText))
+        {
+            return;
+        }
+
+        string triggerText = boxText.Substring(triggerStartIndex, triggerLength);
+
+        // The text cannot be changed from inside TextChanged, so replace the trigger right after.
+        Dispatcher.BeginInvoke(() =>
+        {
+            // Make sure nothing else changed the text in the meantime.
+            if (answerTextBox.Text.Length < triggerStartIndex + triggerLength ||
+                answerTextBox.Text.Substring(triggerStartIndex, triggerLength) != triggerText)
+            {
+                return;
+            }
+
+            // Replacing through the selection keeps it as one undo step.
+            answerTextBox.Select(triggerStartIndex, triggerLength);
+            answerTextBox.SelectedText = expandedText;
+            // Cursor back after the separator the user typed.
+            answerTextBox.Select(triggerStartIndex + expandedText.Length + 1, 0);
+        });
     }
 }
