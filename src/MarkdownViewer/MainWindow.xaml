@@ -117,7 +117,7 @@
                     <TextBlock Text="Bookshelf" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
                 </DockPanel>
 
-                <!-- The list of files. Click a file to open it; drop files here to add them. -->
+                <!-- The list of files. Click a file to open it; drag it up or down to reorder; drop files here to add them. -->
                 <Grid Grid.Row="1">
                     <ListBox x:Name="BookshelfList"
                              SelectionMode="Extended"
@@ -125,13 +125,19 @@
                              BorderBrush="#E0E0E0"
                              Background="Transparent"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             AllowDrop="True"
+                             PreviewMouseLeftButtonDown="BookshelfList_PreviewMouseLeftButtonDown"
+                             PreviewMouseMove="BookshelfList_PreviewMouseMove"
                              PreviewMouseLeftButtonUp="BookshelfList_PreviewMouseLeftButtonUp"
+                             DragOver="BookshelfList_DragOver"
+                             DragLeave="BookshelfList_DragLeave"
+                             Drop="BookshelfList_Drop"
                              KeyDown="BookshelfList_KeyDown">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
+                                <!-- Only the file name is shown; the full path is in the tooltip and the properties panel. -->
                                 <StackPanel x:Name="EntryPanel" Margin="2,3" ToolTip="{Binding FilePath}">
                                     <TextBlock x:Name="FileNameText" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding FolderPath}" FontSize="11" Foreground="#707070" TextTrimming="CharacterEllipsis" />
                                     <TextBlock x:Name="MissingFileText" Text="File not found" FontSize="11" Foreground="#B00020" Visibility="Collapsed" />
                                 </StackPanel>
                                 <DataTemplate.Triggers>
@@ -149,6 +155,8 @@
                                 <MenuItem Header="_Open" Click="OpenBookshelfEntryMenuItem_Click" />
                                 <MenuItem Header="Show in _folder" Click="ShowBookshelfEntryInFolderMenuItem_Click" />
                                 <MenuItem Header="_Copy path" Click="CopyBookshelfEntryPathMenuItem_Click" />
+                                <Separator />
+                                <MenuItem Header="_Sort by name (A-Z)" Click="SortBookshelfByNameMenuItem_Click" />
                                 <Separator />
                                 <MenuItem Header="_Remove from bookshelf" InputGestureText="Del" Click="RemoveFromBookshelfButton_Click" />
                             </ContextMenu>

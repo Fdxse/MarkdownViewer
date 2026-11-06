@@ -22,6 +22,8 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
 
 - **Bookshelf** (left panel, **Ctrl+B** to show or hide): collect Markdown files from anywhere on disk in one list.
   Add them with **Add...**, **Ctrl+D** (adds the open file), or by dropping files or a folder onto the panel.
+  The list shows file names only (hover for the full path). Drag a file up or down to put the shelf in your own order
+  (or use Alt+Up / Alt+Down); right-click → *Sort by name* puts it back in alphabetical order.
   Click a file to open it; right-click for *Show in folder*, *Copy path* and *Remove* (the file itself is never deleted).
   Moved or deleted files are greyed out. The bookshelf is stored in `%APPDATA%\MarkdownViewer\settings.json`.
 - **Zip all** (File → Zip all): backs up every bookshelf file plus `settings.json` into a timestamped

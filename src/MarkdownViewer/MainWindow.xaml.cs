@@ -819,6 +819,12 @@ public partial class MainWindow : Window
             // Handled, so the editor TextBox does not try to insert the file name as text.
             dragDetails.Handled = true;
         }
+        else if (dragDetails.Data.GetDataPresent(BookshelfEntryDragFormat))
+        {
+            // A bookshelf file being reordered can only be dropped on the bookshelf list,
+            // whose own DragOver handler (which runs after this one) allows it again.
+            dragDetails.Effects = DragDropEffects.None;
+        }
     }
 
     /// <summary>
