@@ -52,6 +52,10 @@
                 <Separator />
                 <MenuItem Header="_Find..." Command="ApplicationCommands.Find" CommandTarget="{Binding ElementName=DocumentReader}" />
             </MenuItem>
+            <MenuItem Header="_Tools">
+                <!-- Text macros such as "@730" that expand while typing in the editor -->
+                <MenuItem Header="_Macros..." Click="MacroSettingsMenuItem_Click" />
+            </MenuItem>
         </Menu>
 
         <!-- Status bar along the bottom -->

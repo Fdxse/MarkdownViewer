@@ -14,6 +14,9 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
 - **Ctrl+F** finds text, **Ctrl+mouse wheel** zooms, **F5** reloads, **Ctrl+P** prints.
 - The open file is watched: if another program changes it, the view refreshes (unless you have unsaved edits).
 - Links to other `.md` files open in the viewer, `#heading` links jump within the document, and web links open in your browser.
+- **Macros** (Tools → Macros): typing a trigger in the editor and then a space, Enter or punctuation replaces it with a template.
+  `{n}` stands for a number, so the default macro turns `@730` into `[Task 730](https://devops/dev/_workitem_edit/730)`.
+  Ctrl+Z undoes an expansion. Macros are stored in `%APPDATA%\MarkdownViewer\settings.json`.
 
 Supported Markdown: CommonMark plus tables, task lists, strikethrough, footnotes, emoji and auto-linked URLs.
 Raw HTML is shown as source text, and SVG images are not supported (their alt text is shown instead).
