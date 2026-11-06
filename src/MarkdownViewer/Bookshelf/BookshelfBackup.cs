@@ -5,7 +5,7 @@ using System.Text;
 namespace MarkdownViewer.Bookshelf;
 
 /// <summary>
-/// Creates a "zip all" backup: one .zip file holding every Markdown file on the bookshelf plus the
+/// Creates a "zip all" backup: one .zip file holding every Markdown file on every bookshelf plus the
 /// settings file, so the whole setup can be moved to another computer by unzipping it there.
 /// Uses only the built-in System.IO.Compression (no extra packages).
 ///

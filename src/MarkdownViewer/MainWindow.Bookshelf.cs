@@ -31,6 +31,11 @@ public partial class MainWindow
     {
         bookshelfWidthBeforeHiding = Math.Max(appSettings.BookshelfPanelWidth, BookshelfMinimumWidth);
         BookshelfColumn.Width = new GridLength(bookshelfWidthBeforeHiding);
+
+        // The Standard shelf is always the one shown when the app starts.
+        currentBookshelf = appSettings.StandardBookshelf;
+        RefreshShelfChooser();
+
         ApplyAlphabeticalOrderOnFirstRun();
         SetBookshelfVisible(appSettings.IsBookshelfVisible);
         RefreshBookshelfList();
@@ -90,15 +95,15 @@ public partial class MainWindow
     /// </summary>
     private void RefreshBookshelfList()
     {
-        foreach (var bookshelfEntry in appSettings.BookshelfEntries)
+        foreach (var bookshelfEntry in currentBookshelf.Entries)
         {
             bookshelfEntry.RefreshFileExists();
         }
 
         // A copy, so the list control is not tied to the settings list while it is being reordered.
-        BookshelfList.ItemsSource = appSettings.BookshelfEntries.ToList();
+        BookshelfList.ItemsSource = currentBookshelf.Entries.ToList();
 
-        BookshelfEmptyHint.Visibility = appSettings.BookshelfEntries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        BookshelfEmptyHint.Visibility = currentBookshelf.Entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         SelectOpenFileInBookshelf();
     }
 
@@ -116,10 +121,10 @@ public partial class MainWindow
         }
     }
 
-    /// <summary>True if the given file is already on the bookshelf.</summary>
+    /// <summary>True if the given file is already on the shelf that is shown.</summary>
     private bool IsOnBookshelf(string filePath)
     {
-        return appSettings.BookshelfEntries.Any(bookshelfEntry => bookshelfEntry.HasPath(filePath));
+        return currentBookshelf.ContainsFile(filePath);
     }
 
     /// <summary>
@@ -137,7 +142,7 @@ public partial class MainWindow
                 continue;
             }
 
-            appSettings.BookshelfEntries.Add(new BookshelfEntry { FilePath = fullPath, AddedOn = DateTime.Now });
+            currentBookshelf.Entries.Add(new BookshelfEntry { FilePath = fullPath, AddedOn = DateTime.Now });
             addedFileCount++;
         }
 
@@ -160,7 +165,7 @@ public partial class MainWindow
 
         foreach (var entryToRemove in entriesToRemove)
         {
-            appSettings.BookshelfEntries.Remove(entryToRemove);
+            currentBookshelf.Entries.Remove(entryToRemove);
         }
 
         SaveSettingsOrWarn();
@@ -201,7 +206,12 @@ public partial class MainWindow
         string zipFilePath = Path.Combine(exeFolderPath, backupFileName);
 
         // Take a snapshot of what to back up on the UI thread; the zipping itself runs in the background.
-        List<string> bookshelfFilePaths = appSettings.BookshelfEntries.Select(bookshelfEntry => bookshelfEntry.FilePath).ToList();
+        // Files from every shelf; a file that is on several shelves goes into the zip once.
+        List<string> bookshelfFilePaths = appSettings.Bookshelves
+            .SelectMany(bookshelf => bookshelf.Entries)
+            .Select(bookshelfEntry => bookshelfEntry.FilePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         // The todo list lives next to the exe rather than on the bookshelf, so add it explicitly (if it exists yet).
         if (File.Exists(TodoFilePath) && !bookshelfFilePaths.Contains(TodoFilePath, StringComparer.OrdinalIgnoreCase))
         {
@@ -446,7 +456,14 @@ public partial class MainWindow
                 AddPropertyRow("Status", "File not found on disk");
             }
 
-            AddPropertyRow("On bookshelf", IsOnBookshelf(currentFilePath) ? "Yes" : "No (Ctrl+D to add)");
+            // Every shelf the file is on, e.g. "Standard, Documentation".
+            var shelvesWithFile = appSettings.Bookshelves
+                .Where(bookshelf => bookshelf.ContainsFile(currentFilePath))
+                .Select(bookshelf => bookshelf.Name)
+                .ToList();
+            AddPropertyRow("Bookshelves", shelvesWithFile.Count > 0
+                ? string.Join(", ", shelvesWithFile)
+                : "None (Ctrl+D adds it to this shelf)");
         }
         if (HasUnsavedChanges)
         {
@@ -747,7 +764,7 @@ public partial class MainWindow
         }
 
         // Only rebuild the list when a file appeared or disappeared, so the list does not jump around.
-        bool anyFileExistenceChanged = appSettings.BookshelfEntries
+        bool anyFileExistenceChanged = currentBookshelf.Entries
             .Any(bookshelfEntry => bookshelfEntry.FileExists != File.Exists(bookshelfEntry.FilePath));
         if (anyFileExistenceChanged)
         {

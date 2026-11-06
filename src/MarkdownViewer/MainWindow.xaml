@@ -106,15 +106,32 @@
                     <RowDefinition Height="*" MinHeight="80" />
                 </Grid.RowDefinitions>
 
-                <!-- Bookshelf header with add/remove buttons -->
+                <!-- Bookshelf header: shelf drop-down, shelf menu, and add/remove buttons -->
                 <DockPanel Grid.Row="0" Margin="8,6,6,4">
                     <Button DockPanel.Dock="Right" Content="Remove" Padding="6,1" Margin="4,0,0,0"
-                            ToolTip="Remove the selected files from the bookshelf (the files themselves are not deleted)"
+                            ToolTip="Remove the selected files from this bookshelf (the files themselves are not deleted)"
                             Click="RemoveFromBookshelfButton_Click" />
                     <Button DockPanel.Dock="Right" Content="Add..." Padding="6,1"
-                            ToolTip="Add Markdown files to the bookshelf"
+                            ToolTip="Add Markdown files to this bookshelf"
                             Click="AddFilesToBookshelfButton_Click" />
-                    <TextBlock Text="Bookshelf" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                    <!-- Opens a menu to create, rename or delete bookshelves -->
+                    <Button x:Name="ShelfMenuButton" DockPanel.Dock="Right" Content="⋯" Padding="6,1" Margin="4,0,4,0"
+                            ToolTip="New, rename or delete bookshelves"
+                            Click="ShelfMenuButton_Click">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="_New bookshelf..." Click="NewShelfMenuItem_Click" />
+                                <MenuItem Header="_Rename this bookshelf..." Tag="RenameShelf" Click="RenameShelfMenuItem_Click" />
+                                <MenuItem Header="_Delete this bookshelf..." Tag="DeleteShelf" Click="DeleteShelfMenuItem_Click" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
+                    <!-- Which bookshelf is shown. Standard is first and is shown at startup. -->
+                    <ComboBox x:Name="ShelfChooser"
+                              FontWeight="SemiBold"
+                              VerticalContentAlignment="Center"
+                              ToolTip="Choose a bookshelf"
+                              SelectionChanged="ShelfChooser_SelectionChanged" />
                 </DockPanel>
 
                 <!-- The list of files. Click a file to open it; drag it up or down to reorder; drop files here to add them. -->
@@ -151,14 +168,18 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                         <ListBox.ContextMenu>
-                            <ContextMenu>
+                            <ContextMenu Opened="BookshelfContextMenu_Opened">
                                 <MenuItem Header="_Open" Click="OpenBookshelfEntryMenuItem_Click" />
                                 <MenuItem Header="Show in _folder" Click="ShowBookshelfEntryInFolderMenuItem_Click" />
                                 <MenuItem Header="_Copy path" Click="CopyBookshelfEntryPathMenuItem_Click" />
                                 <Separator />
                                 <MenuItem Header="_Sort by name (A-Z)" Click="SortBookshelfByNameMenuItem_Click" />
                                 <Separator />
-                                <MenuItem Header="_Remove from bookshelf" InputGestureText="Del" Click="RemoveFromBookshelfButton_Click" />
+                                <!-- Filled with the other bookshelves when the menu opens (BookshelfContextMenu_Opened) -->
+                                <MenuItem Header="_Add to bookshelf" Tag="CopyToShelf" />
+                                <MenuItem Header="_Move to bookshelf" Tag="MoveToShelf" />
+                                <Separator />
+                                <MenuItem Header="_Remove from this bookshelf" InputGestureText="Del" Click="RemoveFromBookshelfButton_Click" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>
@@ -169,7 +190,7 @@
                                TextWrapping="Wrap"
                                Foreground="#707070"
                                IsHitTestVisible="False"
-                               Text="Your bookshelf is empty. Click Add..., press Ctrl+D to add the open file, or drop Markdown files (or a folder) here." />
+                               Text="This bookshelf is empty. Click Add..., press Ctrl+D to add the open file, or drop Markdown files (or a folder) here." />
                 </Grid>
 
                 <!-- Lets the user share the height between the list and the properties -->

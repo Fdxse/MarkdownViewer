@@ -26,6 +26,10 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   (or use Alt+Up / Alt+Down); right-click → *Sort by name* puts it back in alphabetical order.
   Click a file to open it; right-click for *Show in folder*, *Copy path* and *Remove* (the file itself is never deleted).
   Moved or deleted files are greyed out. The bookshelf is stored in `%APPDATA%\MarkdownViewer\settings.json`.
+- **Several bookshelves**: the drop-down at the top of the panel switches between shelves, and the **⋯** button
+  creates, renames or deletes them (e.g. *Documentation*, *Post-its*). The **Standard** shelf always exists and is
+  the one shown when the app starts. A file can be on several shelves: right-click → *Add to bookshelf* or
+  *Move to bookshelf*. Each shelf keeps its own order. Deleting a shelf never deletes the files.
 - **Zip all** (File → Zip all): backs up every bookshelf file plus `settings.json` into a timestamped
   `MarkdownViewer-backup-<date>_<time>.zip` next to the exe (or a place you pick, if that folder is read-only).
   Files keep their original folder structure under `files/` (e.g. `files/C/Notes/README.md`), so files with the same

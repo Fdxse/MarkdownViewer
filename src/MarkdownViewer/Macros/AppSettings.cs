@@ -1,12 +1,13 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using MarkdownViewer.Links;
 using MarkdownViewer.Bookshelf;
 
 namespace MarkdownViewer.Macros;
 
 /// <summary>
-/// User settings (macros and the bookshelf), stored as JSON in %APPDATA%\MarkdownViewer\settings.json so they survive
+/// User settings (macros, links and the bookshelves), stored as JSON in %APPDATA%\MarkdownViewer\settings.json so they survive
 /// updates of the exe. The file can also be edited by hand.
 /// </summary>
 public class AppSettings
@@ -30,8 +31,22 @@ public class AppSettings
 
     /// <summary>Saved name + URL entries shown in the Links menu.</summary>
     public List<SavedLink> Links { get; set; } = new();
-    /// <summary>Markdown files collected on the bookshelf, from anywhere on disk.</summary>
-    public List<BookshelfEntry> BookshelfEntries { get; set; } = new();
+    /// <summary>
+    /// The bookshelves, each with its own Markdown files from anywhere on disk.
+    /// The first one is always the Standard shelf, which is shown when the app starts.
+    /// </summary>
+    public List<NamedBookshelf> Bookshelves { get; set; } = new();
+
+    /// <summary>
+    /// The single bookshelf of older versions. Only read, to move its files to the Standard shelf;
+    /// it is null afterwards and then left out of the settings file.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<BookshelfEntry>? BookshelfEntries { get; set; }
+
+    /// <summary>The Standard shelf (always present after <see cref="Load"/> or <see cref="CreateDefaults"/>).</summary>
+    [JsonIgnore]
+    public NamedBookshelf StandardBookshelf => Bookshelves.First(bookshelf => bookshelf.IsStandardShelf);
 
     /// <summary>True if the bookshelf and properties panel is shown (View → Bookshelf, Ctrl+B).</summary>
     public bool IsBookshelfVisible { get; set; } = true;
@@ -53,6 +68,7 @@ public class AppSettings
     /// <summary>Settings used the first time the app runs: one example macro for work item links.</summary>
     public static AppSettings CreateDefaults() => new()
     {
+        Bookshelves = { new NamedBookshelf { Name = NamedBookshelf.StandardShelfName } },
         Macros =
         {
             new MacroDefinition
@@ -83,20 +99,55 @@ public class AppSettings
             loadedSettings.Macros ??= new List<MacroDefinition>();
             // Same for "Links": null (older settings files have no Links entry at all, which is fine too).
             loadedSettings.Links ??= new List<SavedLink>();
-            loadedSettings.BookshelfEntries ??= new List<BookshelfEntry>();
             // Older settings files have no todo section yet; an empty value falls back to the default too.
             if (string.IsNullOrWhiteSpace(loadedSettings.TodoSectionHeading))
             {
                 loadedSettings.TodoSectionHeading = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
             }
-            // Drop entries without a path, e.g. from a hand-edited file.
-            loadedSettings.BookshelfEntries.RemoveAll(bookshelfEntry => bookshelfEntry == null || string.IsNullOrWhiteSpace(bookshelfEntry.FilePath));
+            loadedSettings.RepairBookshelves();
             return loadedSettings;
         }
         catch (Exception readError)
         {
             loadError = $"Could not read the settings file:\n{SettingsFilePath}\n\n{readError.Message}";
             return CreateDefaults();
+        }
+    }
+
+    /// <summary>
+    /// Makes the bookshelves valid whatever the file contained: moves the old single bookshelf to the
+    /// Standard shelf, makes sure Standard exists and comes first, drops nameless or duplicate shelves
+    /// and entries without a path (e.g. from a hand-edited file).
+    /// </summary>
+    private void RepairBookshelves()
+    {
+        Bookshelves ??= new List<NamedBookshelf>();
+        Bookshelves.RemoveAll(bookshelf => bookshelf == null || string.IsNullOrWhiteSpace(bookshelf.Name));
+
+        // Keep only the first shelf of each name.
+        var seenShelfNames = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+        Bookshelves.RemoveAll(bookshelf => !seenShelfNames.Add(bookshelf.Name.Trim()));
+
+        // Standard always exists and is always first.
+        var standardShelf = Bookshelves.FirstOrDefault(bookshelf => bookshelf.IsStandardShelf)
+            ?? new NamedBookshelf { Name = NamedBookshelf.StandardShelfName };
+        Bookshelves.Remove(standardShelf);
+        Bookshelves.Insert(0, standardShelf);
+
+        // Settings from before multiple shelves: their files go onto the Standard shelf.
+        if (BookshelfEntries != null)
+        {
+            foreach (var oldEntry in BookshelfEntries.Where(oldEntry => oldEntry != null && !standardShelf.ContainsFile(oldEntry.FilePath ?? string.Empty)))
+            {
+                standardShelf.Entries.Add(oldEntry);
+            }
+            BookshelfEntries = null;
+        }
+
+        foreach (var bookshelf in Bookshelves)
+        {
+            bookshelf.Entries ??= new List<BookshelfEntry>();
+            bookshelf.Entries.RemoveAll(bookshelfEntry => bookshelfEntry == null || string.IsNullOrWhiteSpace(bookshelfEntry.FilePath));
         }
     }
 
