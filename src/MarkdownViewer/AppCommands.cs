@@ -20,4 +20,18 @@ public static class AppCommands
         nameof(Reload),
         typeof(AppCommands),
         new InputGestureCollection { new KeyGesture(Key.F5) });
+
+    /// <summary>Shows or hides the bookshelf and properties panel (Ctrl+B).</summary>
+    public static readonly RoutedUICommand ToggleBookshelf = new(
+        "Toggle bookshelf",
+        nameof(ToggleBookshelf),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.B, ModifierKeys.Control) });
+
+    /// <summary>Puts the open file on the bookshelf (Ctrl+D, like a browser bookmark).</summary>
+    public static readonly RoutedUICommand AddToBookshelf = new(
+        "Add to bookshelf",
+        nameof(AddToBookshelf),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.D, ModifierKeys.Control) });
 }
