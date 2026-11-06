@@ -18,6 +18,14 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   `{n}` stands for a number, so the default macro turns `@730` into `[Task 730](https://devops/dev/_workitem_edit/730)`.
   Ctrl+Z undoes an expansion. Macros are stored in `%APPDATA%\MarkdownViewer\settings.json`.
 
+- **Bookshelf** (left panel, **Ctrl+B** to show or hide): collect Markdown files from anywhere on disk in one list.
+  Add them with **Add...**, **Ctrl+D** (adds the open file), or by dropping files or a folder onto the panel.
+  Click a file to open it; right-click for *Show in folder*, *Copy path* and *Remove* (the file itself is never deleted).
+  Moved or deleted files are greyed out. The bookshelf is stored in `%APPDATA%\MarkdownViewer\settings.json`.
+- **Properties** (under the bookshelf): location, size, created and modified dates, characters, words, lines,
+  paragraphs, headings per level, links, images, code blocks, tables, tasks done and an estimated reading time
+  for the open document. The numbers follow along while you edit.
+
 Supported Markdown: CommonMark plus tables, task lists, strikethrough, footnotes, emoji and auto-linked URLs.
 Raw HTML is shown as source text, and SVG images are not supported (their alt text is shown instead).
 
