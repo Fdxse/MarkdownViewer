@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!--
+  Hidden page used by MermaidDiagramRenderer.cs. It runs inside an invisible WebView2 and never shows on screen.
+  The app serves this file and mermaid.min.js from the exe itself (fake host https://mermaid-host.local),
+  and the Content-Security-Policy below blocks every other request, so diagram text never leaves the computer.
+-->
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; script-src https://mermaid-host.local 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:">
+    <script src="https://mermaid-host.local/mermaid.min.js"></script>
+    <style>
+        /* Roomy page so diagrams that size themselves to the page width have space to lay out. */
+        body { margin: 0; width: 1000px; background: white; }
+    </style>
+</head>
+<body>
+<script>
+    "use strict";
+
+    // Largest bitmap side we produce; browsers refuse canvases that are much bigger than this.
+    const maximumBitmapSide = 8000;
+
+    // Diagrams are drawn at twice their size so they stay sharp on high-DPI screens and when zoomed.
+    const preferredPixelScale = 2;
+
+    // Counter that gives every diagram its own element id inside this page.
+    let diagramCounter = 0;
+
+    mermaid.initialize({
+        startOnLoad: false,
+        theme: "default",
+        // "strict" disables clicks, scripts and HTML inside diagrams.
+        securityLevel: "strict",
+        // Plain SVG text instead of HTML labels: HTML labels (foreignObject) cannot be copied onto a canvas.
+        htmlLabels: false,
+        flowchart: { htmlLabels: false },
+        // On a syntax error, throw instead of drawing mermaid's own "bomb" error picture.
+        suppressErrorRendering: true,
+    });
+
+    /** Sends a result back to the app (MermaidDiagramRenderer.HandleWebMessage). */
+    function sendToApp(message) {
+        window.chrome.webview.postMessage(JSON.stringify(message));
+    }
+
+    /** Loads an SVG document into an <img> element and resolves once the browser has decoded it. */
+    function loadSvgAsImage(svgMarkup) {
+        return new Promise((resolve, reject) => {
+            const svgImage = new Image();
+            svgImage.onload = () => resolve(svgImage);
+            svgImage.onerror = () => reject(new Error("The diagram picture could not be loaded."));
+            svgImage.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgMarkup);
+        });
+    }
+
+    /**
+     * Called by the app (via ExecuteScriptAsync) for each diagram.
+     * Renders the Mermaid text to SVG, converts that to a PNG and posts it back with the same request id.
+     */
+    async function renderDiagram(requestId, diagramText) {
+        try {
+            diagramCounter++;
+            const renderResult = await mermaid.render("diagram" + diagramCounter, diagramText);
+
+            // Parse the SVG so its size can be fixed to the diagram's own size (mermaid sets width="100%").
+            const svgDocument = new DOMParser().parseFromString(renderResult.svg, "image/svg+xml");
+            const svgElement = svgDocument.documentElement;
+            const viewBox = svgElement.viewBox.baseVal;
+            const diagramWidth = Math.ceil(viewBox && viewBox.width ? viewBox.width : parseFloat(svgElement.getAttribute("width")) || 600);
+            const diagramHeight = Math.ceil(viewBox && viewBox.height ? viewBox.height : parseFloat(svgElement.getAttribute("height")) || 400);
+            svgElement.setAttribute("width", diagramWidth);
+            svgElement.setAttribute("height", diagramHeight);
+            svgElement.style.maxWidth = "";
+
+            const svgImage = await loadSvgAsImage(new XMLSerializer().serializeToString(svgElement));
+
+            // Shrink the scale for very large diagrams so the canvas stays within browser limits.
+            const pixelScale = Math.min(preferredPixelScale, maximumBitmapSide / Math.max(diagramWidth, diagramHeight));
+            const drawingCanvas = document.createElement("canvas");
+            drawingCanvas.width = Math.max(1, Math.round(diagramWidth * pixelScale));
+            drawingCanvas.height = Math.max(1, Math.round(diagramHeight * pixelScale));
+            const drawingContext = drawingCanvas.getContext("2d");
+            drawingContext.drawImage(svgImage, 0, 0, drawingCanvas.width, drawingCanvas.height);
+
+            sendToApp({
+                requestId: requestId,
+                pngDataUrl: drawingCanvas.toDataURL("image/png"),
+                width: diagramWidth,
+                height: diagramHeight,
+            });
+        } catch (renderError) {
+            sendToApp({
+                requestId: requestId,
+                error: (renderError && renderError.message) ? renderError.message : String(renderError),
+            });
+        }
+    }
+
+    // Tell the app the page and mermaid.js are loaded and diagrams can be requested.
+    sendToApp({ ready: true });
+</script>
+</body>
+</html>

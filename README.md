@@ -43,6 +43,11 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   for the open document. The numbers follow along while you edit.
 
 Supported Markdown: CommonMark plus tables, task lists, strikethrough, footnotes, emoji and auto-linked URLs.
+**Mermaid diagrams**: a ```` ```mermaid ```` code block is drawn as a diagram (flowcharts, sequence, class, state, ER,
+Gantt, pie, mindmaps and the rest of Mermaid). This uses the Microsoft Edge WebView2 Runtime that comes with
+Windows 10 and 11, started invisibly only when a document has a diagram. mermaid.js is built into the exe, so it
+works offline and diagram text never leaves your computer. If a diagram has an error (or WebView2 is missing),
+the code is shown with a short note explaining why.
 Raw HTML is shown as source text, and SVG images are not supported (their alt text is shown instead).
 
 ## Building
@@ -57,3 +62,6 @@ dotnet publish src/MarkdownViewer -c Release -o publish   # produces publish/Mar
 ## Dependencies
 
 - [Markdig](https://github.com/xoofx/markdig) (BSD-2-Clause) for parsing Markdown. Rendering into native WPF is done in `src/MarkdownViewer/Rendering`.
+- [Microsoft.Web.WebView2](https://www.nuget.org/packages/Microsoft.Web.WebView2) (BSD-style) to run mermaid.js for diagrams.
+- [Mermaid](https://mermaid.js.org) 12.3.0 (MIT), bundled as `src/MarkdownViewer/Assets/Mermaid/mermaid.min.js`.
+  To update it, replace that file with `dist/mermaid.min.js` from the [npm package](https://www.npmjs.com/package/mermaid).
