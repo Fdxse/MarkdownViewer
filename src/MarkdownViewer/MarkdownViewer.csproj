@@ -29,6 +29,8 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <!-- No separate .pdb next to the exe -->
     <DebugType>embedded</DebugType>
+    <!-- Do not copy NuGet packages' XML API docs (e.g. WebView2's) next to the exe -->
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,11 +38,16 @@
     <EmbeddedResource Include="Assets\Welcome.md" LogicalName="MarkdownViewer.Welcome.md" />
     <!-- Same icon as a WPF resource so the window's title bar can show it -->
     <Resource Include="Assets\AppIcon.ico" />
+    <!-- Mermaid diagram support: the hidden host page and mermaid.js (MIT licensed), served to WebView2 from the exe -->
+    <EmbeddedResource Include="Assets\Mermaid\MermaidHost.html" LogicalName="MarkdownViewer.Mermaid.MermaidHost.html" />
+    <EmbeddedResource Include="Assets\Mermaid\mermaid.min.js" LogicalName="MarkdownViewer.Mermaid.mermaid.min.js" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Markdown parser (BSD-2-Clause licensed), approved by the project owner -->
     <PackageReference Include="Markdig" Version="1.4.2" />
+    <!-- Microsoft Edge WebView2 SDK (BSD-style license), approved by the project owner; runs mermaid.js to draw ```mermaid diagrams -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
   </ItemGroup>
 
 </Project>

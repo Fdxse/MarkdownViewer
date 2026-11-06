@@ -153,6 +153,10 @@ public sealed class MarkdownFlowDocumentRenderer
             case MathBlock mathBlock:
                 return RenderCodeBlock(mathBlock);
 
+            // ```mermaid blocks become diagrams; they fall back to the plain code if drawing fails.
+            case FencedCodeBlock fencedCodeBlock when IsMermaidBlock(fencedCodeBlock):
+                return RenderMermaidBlock(fencedCodeBlock);
+
             case CodeBlock codeBlock:
                 return RenderCodeBlock(codeBlock);
 
@@ -273,6 +277,92 @@ public sealed class MarkdownFlowDocumentRenderer
         }
 
         return codeParagraph;
+    }
+
+    /// <summary>True for fenced code blocks whose language is "mermaid" (```mermaid).</summary>
+    private static bool IsMermaidBlock(FencedCodeBlock fencedCodeBlock)
+    {
+        return string.Equals(fencedCodeBlock.Info?.Trim(), "mermaid", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Renders a ```mermaid block. The block starts out as normal code inside a section; once the diagram has been
+    /// drawn (see <see cref="MermaidDiagramRenderer"/>), the code is swapped for the picture. If drawing fails,
+    /// the code stays and a short note under it explains why.
+    /// </summary>
+    private Section RenderMermaidBlock(FencedCodeBlock mermaidBlock)
+    {
+        var codeParagraph = RenderCodeBlock(mermaidBlock);
+        var diagramSection = new Section();
+        diagramSection.Blocks.Add(codeParagraph);
+
+        string diagramText = string.Join("\n", mermaidBlock.Lines.Lines
+            .Take(mermaidBlock.Lines.Count)
+            .Select(codeLine => codeLine.Slice.ToString()));
+        if (string.IsNullOrWhiteSpace(diagramText))
+        {
+            return diagramSection; // Nothing to draw.
+        }
+
+        // Diagrams drawn before (e.g. on the previous keystroke, or when printing) are shown immediately.
+        var finishedOutcome = MermaidDiagramRenderer.Shared.TryGetFinishedRender(diagramText);
+        if (finishedOutcome != null)
+        {
+            ShowMermaidOutcome(diagramSection, codeParagraph, finishedOutcome);
+        }
+        else
+        {
+            _ = ShowMermaidDiagramWhenReadyAsync(diagramSection, codeParagraph, diagramText);
+        }
+
+        return diagramSection;
+    }
+
+    /// <summary>Waits for a diagram to be drawn, then shows it in place of its code.</summary>
+    private static async Task ShowMermaidDiagramWhenReadyAsync(Section diagramSection, Paragraph codeParagraph, string diagramText)
+    {
+        // Started on the UI thread, so the code after await also runs on the UI thread.
+        var renderOutcome = await MermaidDiagramRenderer.Shared.RenderAsync(diagramText);
+        ShowMermaidOutcome(diagramSection, codeParagraph, renderOutcome);
+    }
+
+    /// <summary>Replaces the code with the diagram on success, or adds an explanation under the code on failure.</summary>
+    private static void ShowMermaidOutcome(Section diagramSection, Paragraph codeParagraph, MermaidRenderOutcome renderOutcome)
+    {
+        // The section may have been filled already (or the document re-rendered); only act on the untouched block.
+        if (diagramSection.Blocks.Count != 1 || diagramSection.Blocks.FirstBlock != codeParagraph)
+        {
+            return;
+        }
+
+        if (renderOutcome.DiagramImage is { } diagramImage)
+        {
+            var diagramControl = new Image
+            {
+                Source = diagramImage.DiagramBitmap,
+                // The bitmap is drawn at double size for sharpness; MaxWidth brings it back to its natural size,
+                // and DownOnly lets wide diagrams shrink further to fit a narrow window (keeping proportions).
+                MaxWidth = diagramImage.DisplayWidth,
+                Stretch = Stretch.Uniform,
+                StretchDirection = StretchDirection.DownOnly,
+                HorizontalAlignment = HorizontalAlignment.Left,
+            };
+
+            diagramSection.Blocks.Clear();
+            diagramSection.Blocks.Add(new BlockUIContainer(diagramControl) { Margin = new Thickness(0, 0, 0, 14) });
+            return;
+        }
+
+        // Keep the code visible and say why it is not a diagram (syntax error, no WebView2 runtime, ...).
+        string firstErrorLine = (renderOutcome.ErrorMessage ?? "Unknown error.").Split('\n')[0].Trim();
+        codeParagraph.Margin = new Thickness(0, 0, 0, 4);
+        diagramSection.Blocks.Add(new Paragraph(new Run($"Mermaid diagram could not be drawn: {firstErrorLine}"))
+        {
+            FontSize = 12,
+            FontStyle = FontStyles.Italic,
+            Foreground = DocumentTheme.MutedTextBrush,
+            Margin = new Thickness(0, 0, 0, 14),
+        });
     }
 
     /// <summary>Renders a block quote (&gt; text) with a coloured bar on the left.</summary>
