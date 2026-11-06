@@ -866,6 +866,7 @@ public partial class MainWindow : Window
         }
 
         openFileWatcher?.Dispose();
+        StopWatchingShelfFolder();
         SaveBookshelfLayout();
     }
 }
