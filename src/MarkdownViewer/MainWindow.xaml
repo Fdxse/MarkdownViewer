@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:MarkdownViewer"
         Title="Markdown Viewer"
+        Icon="Assets/AppIcon.ico"
         Width="1100" Height="800"
         MinWidth="480" MinHeight="320"
         WindowStartupLocation="CenterScreen"
