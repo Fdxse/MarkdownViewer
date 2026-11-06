@@ -58,14 +58,28 @@ public sealed class MarkdownFlowDocumentRenderer
     private readonly Action<string, MarkdownFlowDocumentRenderer> linkClickHandler;
 
     /// <summary>
+    /// Invoked when the user ticks or unticks a task check box: (source line index, now checked).
+    /// When null (e.g. for printing), task check boxes are drawn as plain symbols that cannot be clicked.
+    /// </summary>
+    private readonly Action<int, bool>? taskToggleHandler;
+
+    /// <summary>Source line (0-based) of the paragraph being rendered, so a task check box knows which line it belongs to.</summary>
+    private int currentParagraphLineIndex;
+
+    /// <summary>
     /// Creates a renderer for one document.
     /// </summary>
     /// <param name="documentFolderPath">Folder of the Markdown file, or null for unsaved text.</param>
     /// <param name="linkClickHandler">Called when a link is clicked in the rendered document.</param>
-    public MarkdownFlowDocumentRenderer(string? documentFolderPath, Action<string, MarkdownFlowDocumentRenderer> linkClickHandler)
+    /// <param name="taskToggleHandler">Called when a task check box is clicked; null makes check boxes read-only symbols.</param>
+    public MarkdownFlowDocumentRenderer(
+        string? documentFolderPath,
+        Action<string, MarkdownFlowDocumentRenderer> linkClickHandler,
+        Action<int, bool>? taskToggleHandler = null)
     {
         this.documentFolderPath = documentFolderPath;
         this.linkClickHandler = linkClickHandler;
+        this.taskToggleHandler = taskToggleHandler;
     }
 
     /// <summary>
@@ -223,6 +237,8 @@ public sealed class MarkdownFlowDocumentRenderer
     private Paragraph RenderParagraph(ParagraphBlock paragraphBlock)
     {
         var textParagraph = new Paragraph { Margin = new Thickness(0, 0, 0, 12) };
+        // A task check box ("- [ ] ...") is the first inline of its paragraph; remember the line it sits on.
+        currentParagraphLineIndex = paragraphBlock.Line;
         if (paragraphBlock.Inline != null)
         {
             AddInlines(paragraphBlock.Inline, textParagraph.Inlines);
@@ -573,6 +589,9 @@ public sealed class MarkdownFlowDocumentRenderer
                 // Only <br> is meaningful without an HTML engine; other tags are dropped.
                 return htmlInline.Tag.StartsWith("<br", StringComparison.OrdinalIgnoreCase) ? new LineBreak() : null;
 
+            case TaskList taskListInline when taskToggleHandler != null:
+                return RenderTaskCheckBox(taskListInline.Checked);
+
             case TaskList taskListInline:
                 return new Run(taskListInline.Checked ? "☑ " : "☐ ")
                 {
@@ -599,6 +618,27 @@ public sealed class MarkdownFlowDocumentRenderer
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Renders a clickable check box for a task ("- [ ] task"). Clicking it reports the task's source line,
+    /// so the main window can change "[ ]" to "[x]" (or back) in the text and save the file.
+    /// </summary>
+    private InlineUIContainer RenderTaskCheckBox(bool isChecked)
+    {
+        // Captured now: the field moves on to the next paragraph while rendering continues.
+        int taskLineIndex = currentParagraphLineIndex;
+
+        var taskCheckBox = new CheckBox
+        {
+            IsChecked = isChecked,
+            Margin = new Thickness(0, 0, 6, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = "Tick or untick this task (the file is saved right away)",
+        };
+        taskCheckBox.Click += (_, _) => taskToggleHandler?.Invoke(taskLineIndex, taskCheckBox.IsChecked == true);
+
+        return new InlineUIContainer(taskCheckBox) { BaselineAlignment = BaselineAlignment.Center };
     }
 
     /// <summary>

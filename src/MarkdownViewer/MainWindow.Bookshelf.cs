@@ -203,6 +203,11 @@ public partial class MainWindow
 
         // Take a snapshot of what to back up on the UI thread; the zipping itself runs in the background.
         List<string> bookshelfFilePaths = appSettings.BookshelfEntries.Select(bookshelfEntry => bookshelfEntry.FilePath).ToList();
+        // The todo list lives next to the exe rather than on the bookshelf, so add it explicitly (if it exists yet).
+        if (File.Exists(TodoFilePath) && !bookshelfFilePaths.Contains(TodoFilePath, StringComparer.OrdinalIgnoreCase))
+        {
+            bookshelfFilePaths.Add(TodoFilePath);
+        }
         string settingsJson = appSettings.ToJson();
 
         BookshelfBackup.BackupResult? backupResult = await TryCreateBackupAsync(bookshelfFilePaths, settingsJson, zipFilePath, backupTime, reportAccessDenied: false);

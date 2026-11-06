@@ -181,7 +181,7 @@ public partial class MainWindow : Window
         double previousVerticalOffset = previewScrollViewer?.VerticalOffset ?? 0;
 
         string? documentFolder = currentFilePath != null ? Path.GetDirectoryName(currentFilePath) : null;
-        currentRenderer = new MarkdownFlowDocumentRenderer(documentFolder, HandleLinkClick);
+        currentRenderer = new MarkdownFlowDocumentRenderer(documentFolder, HandleLinkClick, HandleTaskCheckBoxToggled);
 
         try
         {
