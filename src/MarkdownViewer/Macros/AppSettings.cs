@@ -39,6 +39,11 @@ public class AppSettings
     /// <summary>Width of the bookshelf panel in pixels, remembered between runs.</summary>
     public double BookshelfPanelWidth { get; set; } = 280;
 
+    /// <summary>
+    /// Heading of the section in todo.md that new tasks are added to (Todo → Add task). Added if missing.
+    /// </summary>
+    public string TodoSectionHeading { get; set; } = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
+
     /// <summary>Settings used the first time the app runs: one example macro for work item links.</summary>
     public static AppSettings CreateDefaults() => new()
     {
@@ -73,6 +78,11 @@ public class AppSettings
             // Same for "Links": null (older settings files have no Links entry at all, which is fine too).
             loadedSettings.Links ??= new List<SavedLink>();
             loadedSettings.BookshelfEntries ??= new List<BookshelfEntry>();
+            // Older settings files have no todo section yet; an empty value falls back to the default too.
+            if (string.IsNullOrWhiteSpace(loadedSettings.TodoSectionHeading))
+            {
+                loadedSettings.TodoSectionHeading = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
+            }
             // Drop entries without a path, e.g. from a hand-edited file.
             loadedSettings.BookshelfEntries.RemoveAll(bookshelfEntry => bookshelfEntry == null || string.IsNullOrWhiteSpace(bookshelfEntry.FilePath));
             return loadedSettings;

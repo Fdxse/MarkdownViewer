@@ -29,6 +29,13 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   Files keep their original folder structure under `files/` (e.g. `files/C/Notes/README.md`), so files with the same
   name never clash, and `backup-contents.txt` lists each original path plus any missing files. To move to another
   computer, unzip it and copy `settings.json` to `%APPDATA%\MarkdownViewer\`.
+- **Todo list** (Todo menu): a plain `todo.md` next to the exe that you can arrange however you like.
+  **Ctrl+Shift+T** asks for a task and adds `- [ ] task` at the top of the section *Todo → Section for new tasks*
+  (default `## Todo`; matched by heading text, added at the end of the file if missing). If the section already has
+  tasks, the new one goes directly above the first of them, so text you put between the heading and the list stays put.
+  Nothing else in the file is touched. **Ctrl+T** opens the list. Zip all includes `todo.md` too.
+- **Task check boxes** in any document are clickable: ticking one changes `[ ]` to `[x]` (or back) in the file
+  and saves it straight away.
 - **Properties** (under the bookshelf): location, size, created and modified dates, characters, words, lines,
   paragraphs, headings per level, links, images, code blocks, tables, tasks done and an estimated reading time
   for the open document. The numbers follow along while you edit.

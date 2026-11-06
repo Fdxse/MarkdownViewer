@@ -34,4 +34,18 @@ public static class AppCommands
         nameof(AddToBookshelf),
         typeof(AppCommands),
         new InputGestureCollection { new KeyGesture(Key.D, ModifierKeys.Control) });
+
+    /// <summary>Opens todo.md from the exe's folder, creating it if needed (Ctrl+T).</summary>
+    public static readonly RoutedUICommand OpenTodoList = new(
+        "Open todo list",
+        nameof(OpenTodoList),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.T, ModifierKeys.Control) });
+
+    /// <summary>Asks for a task and adds it at the top of the todo section in todo.md (Ctrl+Shift+T).</summary>
+    public static readonly RoutedUICommand AddTodoTask = new(
+        "Add task",
+        nameof(AddTodoTask),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.T, ModifierKeys.Control | ModifierKeys.Shift) });
 }

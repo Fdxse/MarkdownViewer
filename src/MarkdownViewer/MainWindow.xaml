@@ -25,6 +25,8 @@
         <CommandBinding Command="local:AppCommands.Reload" Executed="ReloadCommand_Executed" CanExecute="ReloadCommand_CanExecute" />
         <CommandBinding Command="local:AppCommands.ToggleBookshelf" Executed="ToggleBookshelfCommand_Executed" />
         <CommandBinding Command="local:AppCommands.AddToBookshelf" Executed="AddToBookshelfCommand_Executed" CanExecute="AddToBookshelfCommand_CanExecute" />
+        <CommandBinding Command="local:AppCommands.OpenTodoList" Executed="OpenTodoListCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.AddTodoTask" Executed="AddTodoTaskCommand_Executed" />
     </Window.CommandBindings>
 
     <!-- Ctrl+Shift+S is not a built-in gesture for Save As, so it is added here. -->
@@ -65,6 +67,13 @@
             <MenuItem Header="_Tools">
                 <!-- Text macros such as "@730" that expand while typing in the editor -->
                 <MenuItem Header="_Macros..." Click="MacroSettingsMenuItem_Click" />
+            </MenuItem>
+            <!-- The todo list: a plain todo.md next to the exe. New tasks go to the top of a chosen section. -->
+            <MenuItem Header="T_odo">
+                <MenuItem Header="_Add task..." Command="local:AppCommands.AddTodoTask" InputGestureText="Ctrl+Shift+T" />
+                <MenuItem Header="_Open todo list" Command="local:AppCommands.OpenTodoList" InputGestureText="Ctrl+T" />
+                <Separator />
+                <MenuItem Header="_Section for new tasks..." Click="TodoSectionMenuItem_Click" />
             </MenuItem>
             <!-- Saved links that open in the default browser. Filled from the settings in code (RebuildLinksMenu). -->
             <MenuItem x:Name="LinksMenu" Header="_Links" />
