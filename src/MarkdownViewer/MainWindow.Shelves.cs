@@ -198,9 +198,12 @@ public partial class MainWindow
 
         int fileCount = currentBookshelf.Entries.Count;
         string fileCountText = fileCount == 1 ? "1 file" : $"{fileCount} files";
+        string queryCountText = fileCount == 1 ? "1 query" : $"{fileCount} queries";
         string whatHappensText = currentBookshelf.IsFolderShelf
             ? $"It shows the folder {currentBookshelf.FolderPath}. The folder and its files are not touched."
-            : $"It holds {fileCountText}. The files themselves are not deleted from disk.";
+            : currentBookshelf.IsQueryShelf
+                ? $"It holds {queryCountText}, which are deleted with it (the databases are not touched)."
+                : $"It holds {fileCountText}. The files themselves are not deleted from disk.";
         var userAnswer = MessageBox.Show(this,
             $"Delete the bookshelf \"{currentBookshelf.Name}\"?\n\n{whatHappensText}",
             "Markdown Viewer", MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -229,9 +232,10 @@ public partial class MainWindow
             return;
         }
 
-        // Files can only be put on normal shelves; a folder shelf shows its folder.
+        // Files can only be put on normal shelves (a folder shelf shows its folder), and queries only on query shelves.
         var otherShelves = appSettings.Bookshelves
-            .Where(bookshelf => !ReferenceEquals(bookshelf, currentBookshelf) && !bookshelf.IsFolderShelf)
+            .Where(bookshelf => !ReferenceEquals(bookshelf, currentBookshelf) && !bookshelf.IsFolderShelf
+                && bookshelf.IsQueryShelf == currentBookshelf.IsQueryShelf)
             .ToList();
         bool hasSelection = SelectedBookshelfEntries.Count > 0;
 
@@ -239,6 +243,20 @@ public partial class MainWindow
         foreach (var editingMenuItem in bookshelfContextMenu.Items.OfType<MenuItem>().Where(menuItem => Equals(menuItem.Tag, EditsShelfFilesMenuTag)))
         {
             editingMenuItem.IsEnabled = !currentBookshelf.IsFolderShelf;
+        }
+
+        // Show in folder and Copy path are for files; Edit query is for queries. Hidden where they do not apply.
+        foreach (var kindSpecificMenuItem in bookshelfContextMenu.Items.OfType<MenuItem>())
+        {
+            if (Equals(kindSpecificMenuItem.Tag, FileOnlyMenuTag))
+            {
+                kindSpecificMenuItem.Visibility = currentBookshelf.IsQueryShelf ? Visibility.Collapsed : Visibility.Visible;
+            }
+            else if (Equals(kindSpecificMenuItem.Tag, QueryOnlyMenuTag))
+            {
+                kindSpecificMenuItem.Visibility = currentBookshelf.IsQueryShelf ? Visibility.Visible : Visibility.Collapsed;
+                kindSpecificMenuItem.IsEnabled = SelectedBookshelfEntries.Count == 1;
+            }
         }
 
         foreach (var submenu in bookshelfContextMenu.Items.OfType<MenuItem>())
@@ -255,7 +273,10 @@ public partial class MainWindow
 
             if (otherShelves.Count == 0)
             {
-                submenu.Items.Add(new MenuItem { Header = "(no other bookshelves yet: create one with the ⋯ button)", IsEnabled = false });
+                string noShelvesText = currentBookshelf.IsQueryShelf
+                    ? "(no other query bookshelves yet: create one with the ⋯ button)"
+                    : "(no other bookshelves yet: create one with the ⋯ button)";
+                submenu.Items.Add(new MenuItem { Header = noShelvesText, IsEnabled = false });
                 continue;
             }
 
@@ -287,7 +308,13 @@ public partial class MainWindow
 
         foreach (var selectedEntry in selectedEntries)
         {
-            if (!targetShelf.ContainsFile(selectedEntry.FilePath))
+            if (selectedEntry.Query != null)
+            {
+                // A moved query keeps its identity (so the shown result still belongs to it); a copied query becomes
+                // a new, separate query, so editing one copy does not change the other.
+                targetShelf.Entries.Add(removeFromCurrentShelf ? selectedEntry : BookshelfEntry.CreateForQuery(selectedEntry.Query.Clone()));
+            }
+            else if (!targetShelf.ContainsFile(selectedEntry.FilePath))
             {
                 // A new entry, so the two shelves never share (and reorder) the same object.
                 targetShelf.Entries.Add(new BookshelfEntry { FilePath = selectedEntry.FilePath, AddedOn = DateTime.Now });

@@ -8,7 +8,8 @@ namespace MarkdownViewer.Macros;
 
 /// <summary>
 /// User settings (macros, links and the bookshelves), stored as JSON in %APPDATA%\MarkdownViewer\settings.json so they survive
-/// updates of the exe. The file can also be edited by hand.
+/// updates of the exe. The file can also be edited by hand. Connection strings of saved queries are stored encrypted
+/// (see MarkdownViewer.Queries.ConnectionSecrets), so this file never holds a database password as plain text.
 /// </summary>
 public class AppSettings
 {
@@ -148,6 +149,51 @@ public class AppSettings
         {
             bookshelf.Entries ??= new List<BookshelfEntry>();
             bookshelf.Entries.RemoveAll(bookshelfEntry => bookshelfEntry == null || string.IsNullOrWhiteSpace(bookshelfEntry.FilePath));
+
+            // A shelf is either a folder shelf or a query shelf, never both (the folder wins), and Standard is a normal shelf.
+            if (bookshelf.IsFolderShelf || bookshelf.IsStandardShelf)
+            {
+                bookshelf.IsQueryShelf = false;
+            }
+            // Query shelves hold only queries, other shelves only files.
+            bookshelf.Entries.RemoveAll(bookshelfEntry => bookshelfEntry.IsQuery != bookshelf.IsQueryShelf);
+            if (bookshelf.IsQueryShelf)
+            {
+                RepairQueryEntries(bookshelf);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Makes the queries on a query shelf usable whatever the file contained: every query gets a unique id,
+    /// a name, and sensible limits.
+    /// </summary>
+    private static void RepairQueryEntries(NamedBookshelf queryShelf)
+    {
+        var seenQueryIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var queryEntry in queryShelf.Entries)
+        {
+            var savedQuery = queryEntry.Query!;
+            bool hasUsableId = queryEntry.FilePath.StartsWith(BookshelfEntry.QueryPathPrefix, StringComparison.OrdinalIgnoreCase);
+            if (!hasUsableId || !seenQueryIds.Add(queryEntry.FilePath))
+            {
+                queryEntry.FilePath = BookshelfEntry.QueryPathPrefix + Guid.NewGuid().ToString("N");
+                seenQueryIds.Add(queryEntry.FilePath);
+            }
+
+            savedQuery.Name = string.IsNullOrWhiteSpace(savedQuery.Name) ? "Query" : savedQuery.Name;
+            savedQuery.SqlText ??= string.Empty;
+            savedQuery.RowTemplate ??= string.Empty;
+            savedQuery.ServerName ??= string.Empty;
+            savedQuery.DatabaseName ??= string.Empty;
+            if (savedQuery.MaximumRowCount < 1)
+            {
+                savedQuery.MaximumRowCount = MarkdownViewer.Queries.SavedQuery.DefaultMaximumRowCount;
+            }
+            if (savedQuery.TimeoutSeconds < 1)
+            {
+                savedQuery.TimeoutSeconds = MarkdownViewer.Queries.SavedQuery.DefaultTimeoutSeconds;
+            }
         }
     }
 

@@ -1,23 +1,54 @@
 using System.IO;
 using System.Text.Json.Serialization;
+using MarkdownViewer.Queries;
 
 namespace MarkdownViewer.Bookshelf;
 
 /// <summary>
 /// One Markdown file on the bookshelf. Only the path and the date it was added are stored in
 /// the settings file; the other properties are worked out from the path when displayed.
+/// On a query bookshelf the entry holds a saved SQL Server <see cref="Query"/> instead of a file.
 /// </summary>
 public class BookshelfEntry
 {
-    /// <summary>Full path of the Markdown file. The file can be anywhere on disk or on a network share.</summary>
+    /// <summary>Start of the made-up <see cref="FilePath"/> of a query entry, e.g. "query:3f2b...".</summary>
+    public const string QueryPathPrefix = "query:";
+
+    /// <summary>
+    /// Full path of the Markdown file. The file can be anywhere on disk or on a network share.
+    /// For a query entry this is a unique made-up id ("query:" + a GUID), so the list, the drag-and-drop
+    /// ordering and the selection can treat queries and files the same way.
+    /// </summary>
     public string FilePath { get; set; } = string.Empty;
+
+    /// <summary>The saved query, for an entry on a query bookshelf; null (and left out of the settings file) for a file.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SavedQuery? Query { get; set; }
+
+    /// <summary>True if this entry is a saved query rather than a file.</summary>
+    [JsonIgnore]
+    public bool IsQuery => Query != null;
+
+    /// <summary>Makes a bookshelf entry for a query, with a new unique id.</summary>
+    public static BookshelfEntry CreateForQuery(SavedQuery savedQuery) => new()
+    {
+        FilePath = QueryPathPrefix + Guid.NewGuid().ToString("N"),
+        AddedOn = DateTime.Now,
+        Query = savedQuery,
+    };
+
+    /// <summary>Tooltip in the list: the full path of a file, or the server and database of a query.</summary>
+    [JsonIgnore]
+    public string ToolTipText => Query == null
+        ? FilePath
+        : string.IsNullOrWhiteSpace(Query.DatabaseName) ? $"SQL Server query on {Query.ServerName}" : $"SQL Server query on {Query.ServerName} / {Query.DatabaseName}";
 
     /// <summary>When the file was put on the bookshelf.</summary>
     public DateTime AddedOn { get; set; }
 
     /// <summary>File name shown in the list, e.g. "README.md".</summary>
     [JsonIgnore]
-    public string FileName => Path.GetFileName(FilePath);
+    public string FileName => Query?.Name ?? Path.GetFileName(FilePath);
 
     /// <summary>
     /// Text shown in the list. Normally the file name; on a folder shelf with subfolders it includes the
@@ -35,7 +66,7 @@ public class BookshelfEntry
 
     /// <summary>Folder that holds the file, shown in grey under the file name.</summary>
     [JsonIgnore]
-    public string FolderPath => Path.GetDirectoryName(FilePath) ?? string.Empty;
+    public string FolderPath => IsQuery ? string.Empty : Path.GetDirectoryName(FilePath) ?? string.Empty;
 
     /// <summary>
     /// False if the file has been moved or deleted (or its drive is not connected).
@@ -47,8 +78,13 @@ public class BookshelfEntry
     /// <summary>Re-checks whether the file still exists.</summary>
     public void RefreshFileExists()
     {
-        FileExists = File.Exists(FilePath);
+        // A query has no file, so it is never "missing".
+        FileExists = IsQuery || File.Exists(FilePath);
     }
+
+    /// <summary>True if the file appeared or disappeared since <see cref="RefreshFileExists"/> last looked (never for a query).</summary>
+    [JsonIgnore]
+    public bool HasFileExistenceChanged => !IsQuery && FileExists != File.Exists(FilePath);
 
     /// <summary>True if this entry points at the given path (Windows paths are not case-sensitive).</summary>
     public bool HasPath(string otherFilePath)

@@ -123,6 +123,8 @@
                                 <MenuItem Header="_New bookshelf..." Click="NewShelfMenuItem_Click" />
                                 <MenuItem Header="New _folder bookshelf..." Click="NewFolderShelfMenuItem_Click"
                                           ToolTip="A bookshelf that always lists the Markdown files in a folder you choose" />
+                                <MenuItem Header="New _query bookshelf..." Click="NewQueryShelfMenuItem_Click"
+                                          ToolTip="A bookshelf of saved SQL Server queries; opening one runs it and shows the result as a document" />
                                 <Separator />
                                 <MenuItem Header="_Rename this bookshelf..." Tag="RenameShelf" Click="RenameShelfMenuItem_Click" />
                                 <MenuItem Header="_Delete this bookshelf..." Tag="DeleteShelf" Click="DeleteShelfMenuItem_Click" />
@@ -160,7 +162,7 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <!-- Only the file name is shown; the full path is in the tooltip and the properties panel. -->
-                                <StackPanel x:Name="EntryPanel" Margin="2,3" ToolTip="{Binding FilePath}">
+                                <StackPanel x:Name="EntryPanel" Margin="2,3" ToolTip="{Binding ToolTipText}">
                                     <TextBlock x:Name="FileNameText" Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                     <TextBlock x:Name="MissingFileText" Text="File not found" FontSize="11" Foreground="#B00020" Visibility="Collapsed" />
                                 </StackPanel>
@@ -177,8 +179,11 @@
                         <ListBox.ContextMenu>
                             <ContextMenu Opened="BookshelfContextMenu_Opened">
                                 <MenuItem Header="_Open" Click="OpenBookshelfEntryMenuItem_Click" />
-                                <MenuItem Header="Show in _folder" Click="ShowBookshelfEntryInFolderMenuItem_Click" />
-                                <MenuItem Header="_Copy path" Click="CopyBookshelfEntryPathMenuItem_Click" />
+                                <!-- Only for queries (query bookshelves) -->
+                                <MenuItem Header="_Edit query..." Tag="QueryOnly" Click="EditQueryMenuItem_Click" />
+                                <!-- Only for files -->
+                                <MenuItem Header="Show in _folder" Tag="FileOnly" Click="ShowBookshelfEntryInFolderMenuItem_Click" />
+                                <MenuItem Header="_Copy path" Tag="FileOnly" Click="CopyBookshelfEntryPathMenuItem_Click" />
                                 <Separator />
                                 <MenuItem Header="_Sort by name (A-Z)" Tag="EditsShelfFiles" Click="SortBookshelfByNameMenuItem_Click" />
                                 <Separator />
