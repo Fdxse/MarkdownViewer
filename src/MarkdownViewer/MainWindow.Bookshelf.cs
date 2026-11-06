@@ -121,9 +121,11 @@ public partial class MainWindow
     /// <summary>Highlights the open file in the bookshelf list, if it is on the shelf.</summary>
     private void SelectOpenFileInBookshelf()
     {
-        var openFileEntry = currentFilePath == null
+        // A query entry is found by its made-up path, just like a file.
+        string? openEntryPath = currentFilePath ?? currentQueryEntry?.FilePath;
+        var openFileEntry = openEntryPath == null
             ? null
-            : BookshelfList.Items.OfType<BookshelfEntry>().FirstOrDefault(bookshelfEntry => bookshelfEntry.HasPath(currentFilePath));
+            : BookshelfList.Items.OfType<BookshelfEntry>().FirstOrDefault(bookshelfEntry => bookshelfEntry.HasPath(openEntryPath));
 
         BookshelfList.SelectedItem = openFileEntry;
         if (openFileEntry != null)
@@ -144,7 +146,7 @@ public partial class MainWindow
     /// </summary>
     private int AddFilesToBookshelf(IEnumerable<string> filePaths)
     {
-        if (RejectChangeToFolderShelf())
+        if (RejectChangeToFolderShelf() || RejectFilesOnQueryShelf())
         {
             return 0;
         }
@@ -174,7 +176,7 @@ public partial class MainWindow
     /// <summary>Takes files off the bookshelf. The files on disk are not touched.</summary>
     private void RemoveFromBookshelf(IReadOnlyCollection<BookshelfEntry> entriesToRemove)
     {
-        if (entriesToRemove.Count == 0 || RejectChangeToFolderShelf())
+        if (entriesToRemove.Count == 0 || RejectChangeToFolderShelf() || !ConfirmQueryRemoval(entriesToRemove))
         {
             return;
         }
@@ -229,8 +231,10 @@ public partial class MainWindow
         }
 
         // Files from every shelf; a file that is on several shelves goes into the zip once.
+        // Queries have no file: they are saved in settings.json (with their connection strings encrypted).
         List<string> bookshelfFilePaths = appSettings.Bookshelves
             .SelectMany(bookshelf => bookshelf.Entries)
+            .Where(bookshelfEntry => !bookshelfEntry.IsQuery)
             .Select(bookshelfEntry => bookshelfEntry.FilePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -330,6 +334,13 @@ public partial class MainWindow
     /// </summary>
     private void OpenBookshelfEntry(BookshelfEntry bookshelfEntry)
     {
+        // A query is run rather than read from disk.
+        if (bookshelfEntry.IsQuery)
+        {
+            OpenQueryEntry(bookshelfEntry);
+            return;
+        }
+
         // Clicking the file that is already open does nothing.
         if (currentFilePath != null && bookshelfEntry.HasPath(currentFilePath))
         {
@@ -452,15 +463,25 @@ public partial class MainWindow
         string documentText = MarkdownEditor.Text;
         var documentStatistics = DocumentStatistics.Calculate(documentText);
 
-        // --- File ---
-        AddPropertySectionHeader("File");
-        if (currentFilePath == null)
+        // The button under the bookshelf shows the file in Explorer, or for a query opens its settings page.
+        ShowInFolderButton.Content = currentQueryEntry != null ? "Edit query..." : "Show in folder";
+        ShowInFolderButton.ToolTip = currentQueryEntry != null ? "Change the SQL, the connection or how the result is shown (Ctrl+E)" : "Open the folder of this file in Explorer";
+
+        // --- File (or Query) ---
+        if (currentQueryEntry?.Query != null)
         {
+            ShowInFolderButton.IsEnabled = true;
+            AddQueryProperties(currentQueryEntry);
+        }
+        else if (currentFilePath == null)
+        {
+            AddPropertySectionHeader("File");
             AddPropertyRow("Location", "Not saved yet");
             ShowInFolderButton.IsEnabled = false;
         }
         else
         {
+            AddPropertySectionHeader("File");
             ShowInFolderButton.IsEnabled = true;
             AddPropertyRow("Name", Path.GetFileName(currentFilePath));
             AddPropertyRow("Folder", Path.GetDirectoryName(currentFilePath) ?? string.Empty);
@@ -637,8 +658,8 @@ public partial class MainWindow
     /// <summary>File → Add to bookshelf (Ctrl+D) is available when a saved file that is not on the shelf yet is open.</summary>
     private void AddToBookshelfCommand_CanExecute(object sender, CanExecuteRoutedEventArgs canExecuteDetails)
     {
-        // Files cannot be added by hand to a shelf that shows a folder.
-        canExecuteDetails.CanExecute = currentFilePath != null && !currentBookshelf.IsFolderShelf && !IsOnBookshelf(currentFilePath);
+        // Files cannot be added by hand to a shelf that shows a folder, nor to a shelf of queries.
+        canExecuteDetails.CanExecute = currentFilePath != null && !currentBookshelf.IsFolderShelf && !currentBookshelf.IsQueryShelf && !IsOnBookshelf(currentFilePath);
     }
 
     /// <summary>File → Add to bookshelf (Ctrl+D): puts the open file on the shelf and shows the panel.</summary>
@@ -659,6 +680,13 @@ public partial class MainWindow
     /// <summary>"Add..." button and File menu: picks one or more Markdown files from anywhere and puts them on the shelf.</summary>
     private void AddFilesToBookshelfButton_Click(object sender, RoutedEventArgs clickDetails)
     {
+        // On a query shelf the button reads "New..." and adds a query instead.
+        if (currentBookshelf.IsQueryShelf)
+        {
+            AddNewQueryToCurrentShelf();
+            return;
+        }
+
         var openDialog = new OpenFileDialog
         {
             Title = "Add files to the bookshelf",
@@ -769,7 +797,12 @@ public partial class MainWindow
     /// <summary>"Show in folder" button in the properties panel.</summary>
     private void ShowCurrentFileInFolderButton_Click(object sender, RoutedEventArgs clickDetails)
     {
-        if (currentFilePath != null)
+        // For a query result the button is "Edit query...".
+        if (currentQueryEntry != null)
+        {
+            EditQuery(currentQueryEntry);
+        }
+        else if (currentFilePath != null)
         {
             ShowFileInExplorer(currentFilePath);
         }
@@ -795,7 +828,7 @@ public partial class MainWindow
 
         // Only rebuild the list when a file appeared or disappeared, so the list does not jump around.
         bool anyFileExistenceChanged = currentBookshelf.Entries
-            .Any(bookshelfEntry => bookshelfEntry.FileExists != File.Exists(bookshelfEntry.FilePath));
+            .Any(bookshelfEntry => bookshelfEntry.HasFileExistenceChanged);
         if (anyFileExistenceChanged)
         {
             RefreshBookshelfList();

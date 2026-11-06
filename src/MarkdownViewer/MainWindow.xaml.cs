@@ -120,11 +120,13 @@ public partial class MainWindow : Window
     /// <summary>Updates the window title and status bar to match the current state.</summary>
     private void UpdateTitleAndStatus()
     {
-        string documentName = currentFilePath != null ? Path.GetFileName(currentFilePath) : "Untitled";
+        string documentName = currentFilePath != null ? Path.GetFileName(currentFilePath) : currentQueryEntry?.Query?.Name ?? "Untitled";
         string unsavedMarker = HasUnsavedChanges ? "*" : string.Empty;
         Title = $"{documentName}{unsavedMarker} - Markdown Viewer";
 
-        FilePathStatusText.Text = currentFilePath ?? "Not saved yet";
+        // A query result has no file; the status bar says where it came from instead.
+        FilePathStatusText.Text = currentFilePath
+            ?? (currentQueryEntry != null ? currentQueryEntry.ToolTipText + "  (F5 runs it again, Ctrl+E edits it)" : "Not saved yet");
 
         // Same word count as in the properties panel (Markdown symbols such as "#" are not counted).
         int wordCount = DocumentStatistics.CountWords(MarkdownEditor.Text);
@@ -135,13 +137,19 @@ public partial class MainWindow : Window
 
     /// <summary>
     /// Puts text into the editor without it counting as a user edit, then renders it.
+    /// <paramref name="queryEntry"/> is set when the text is the result of a query from a query bookshelf.
     /// </summary>
-    private void SetDocumentText(string markdownText, string? filePath)
+    private void SetDocumentText(string markdownText, string? filePath, BookshelfEntry? queryEntry = null)
     {
         isLoadingText = true;
         try
         {
             currentFilePath = filePath;
+            currentQueryEntry = queryEntry;
+            if (queryEntry == null)
+            {
+                currentQueryRunResult = null;
+            }
             lastSavedText = markdownText;
             MarkdownEditor.Text = markdownText;
             MarkdownEditor.CaretIndex = 0;
@@ -360,6 +368,9 @@ public partial class MainWindow : Window
 
             bool isNewPath = !string.Equals(filePath, currentFilePath, StringComparison.OrdinalIgnoreCase);
             currentFilePath = filePath;
+            // A query result saved with Save As is an ordinary file from now on.
+            currentQueryEntry = null;
+            currentQueryRunResult = null;
             lastSavedText = MarkdownEditor.Text;
             WatchFile(filePath);
 
@@ -746,19 +757,27 @@ public partial class MainWindow : Window
     /// <summary>File → Exit.</summary>
     private void CloseCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails) => Close();
 
-    /// <summary>View → Edit mode (Ctrl+E).</summary>
-    private void ToggleEditModeCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails) => SetEditMode(!isEditMode);
-
-    /// <summary>File → Reload (F5) is only available when a saved file is open.</summary>
-    private void ReloadCommand_CanExecute(object sender, CanExecuteRoutedEventArgs canExecuteDetails)
+    /// <summary>View → Edit mode (Ctrl+E). For a query result, opens the query's settings page instead of the editor.</summary>
+    private void ToggleEditModeCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails)
     {
-        canExecuteDetails.CanExecute = currentFilePath != null;
+        if (currentQueryEntry != null && !isEditMode)
+        {
+            EditQuery(currentQueryEntry);
+            return;
+        }
+        SetEditMode(!isEditMode);
     }
 
-    /// <summary>File → Reload (F5): re-reads the file, asking first if there are unsaved edits.</summary>
+    /// <summary>File → Reload (F5) is only available when a saved file or a query result is open.</summary>
+    private void ReloadCommand_CanExecute(object sender, CanExecuteRoutedEventArgs canExecuteDetails)
+    {
+        canExecuteDetails.CanExecute = currentFilePath != null || currentQueryEntry != null;
+    }
+
+    /// <summary>File → Reload (F5): re-reads the file (or runs the query again), asking first if there are unsaved edits.</summary>
     private void ReloadCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails)
     {
-        if (currentFilePath == null)
+        if (currentFilePath == null && currentQueryEntry == null)
         {
             return;
         }
@@ -773,7 +792,14 @@ public partial class MainWindow : Window
             }
         }
 
-        LoadFile(currentFilePath);
+        if (currentQueryEntry != null)
+        {
+            _ = RunQueryAndShowResultAsync(currentQueryEntry);
+        }
+        else
+        {
+            LoadFile(currentFilePath!);
+        }
     }
 
     /// <summary>View → Reset zoom: back to 100 %.</summary>
@@ -802,7 +828,7 @@ public partial class MainWindow : Window
         printDocument.ColumnWidth = printDialog.PrintableAreaWidth;
         printDocument.PagePadding = new Thickness(60);
 
-        string documentName = currentFilePath != null ? Path.GetFileName(currentFilePath) : "Markdown document";
+        string documentName = currentFilePath != null ? Path.GetFileName(currentFilePath) : currentQueryEntry?.Query?.Name ?? "Markdown document";
         printDialog.PrintDocument(((IDocumentPaginatorSource)printDocument).DocumentPaginator, documentName);
     }
 
@@ -867,6 +893,8 @@ public partial class MainWindow : Window
 
         openFileWatcher?.Dispose();
         StopWatchingShelfFolder();
+        // Stop a query that is still running; its result is no longer wanted.
+        runningQueryCancellation?.Cancel();
         SaveBookshelfLayout();
     }
 }

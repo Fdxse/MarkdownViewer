@@ -38,7 +38,7 @@ public partial class MainWindow
     {
         if (!currentBookshelf.IsFolderShelf)
         {
-            BookshelfEmptyHint.Text = EmptyShelfHintText;
+            BookshelfEmptyHint.Text = currentBookshelf.IsQueryShelf ? EmptyQueryShelfHintText : EmptyShelfHintText;
             return false;
         }
 
@@ -141,10 +141,17 @@ public partial class MainWindow
         AddFilesButton.IsEnabled = canEditFiles;
         RemoveFilesButton.IsEnabled = canEditFiles;
 
+        // On a query shelf the Add button makes a new query, and Remove deletes queries.
+        AddFilesButton.Content = currentBookshelf.IsQueryShelf ? "New..." : "Add...";
+        AddFilesButton.ToolTip = currentBookshelf.IsQueryShelf ? "Add a new SQL Server query to this bookshelf" : "Add Markdown files to this bookshelf";
+        RemoveFilesButton.ToolTip = currentBookshelf.IsQueryShelf
+            ? "Delete the selected queries"
+            : "Remove the selected files from this bookshelf (the files themselves are not deleted)";
+
         // The drop-down's tooltip says which folder a folder shelf shows.
         ShelfChooser.ToolTip = currentBookshelf.IsFolderShelf
             ? $"Shows the Markdown files in {currentBookshelf.FolderPath}" + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
-            : "Choose a bookshelf";
+            : currentBookshelf.IsQueryShelf ? "A bookshelf of saved SQL Server queries" : "Choose a bookshelf";
     }
 
     /// <summary>

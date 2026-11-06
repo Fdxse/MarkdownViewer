@@ -9,7 +9,9 @@ namespace MarkdownViewer.Bookshelf;
 /// <list type="bullet">
 /// <item>a normal shelf, holding the files the user put on it, in the order the user arranged them;</item>
 /// <item>a folder shelf (<see cref="FolderPath"/> set), which always lists the Markdown files in one folder
-/// (optionally with its subfolders). Its <see cref="Entries"/> are read from disk, never edited by hand.</item>
+/// (optionally with its subfolders). Its <see cref="Entries"/> are read from disk, never edited by hand;</item>
+/// <item>a query shelf (<see cref="IsQueryShelf"/>), whose entries are saved SQL Server queries. Opening one runs
+/// the query and shows the result as a Markdown document.</item>
 /// </list>
 /// The same file may be on several shelves.
 /// </summary>
@@ -42,6 +44,11 @@ public class NamedBookshelf
     // Left out of the settings file for normal shelves.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IncludeSubfolders { get; set; }
+
+    /// <summary>True for a query bookshelf: its entries are saved SQL Server queries instead of files.</summary>
+    // Left out of the settings file for the other kinds of shelf.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsQueryShelf { get; set; }
 
     /// <summary>True if this shelf lists a folder instead of files the user added.</summary>
     [JsonIgnore]
@@ -160,5 +167,5 @@ public class NamedBookshelf
     };
 
     /// <summary>The shelf name, which is what the drop-down shows (folder shelves are marked as such).</summary>
-    public override string ToString() => IsFolderShelf ? $"{Name} (folder)" : Name;
+    public override string ToString() => IsFolderShelf ? $"{Name} (folder)" : IsQueryShelf ? $"{Name} (queries)" : Name;
 }
