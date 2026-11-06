@@ -40,4 +40,7 @@ Console.WriteLine("Hello, Markdown!");
 The file is watched while open: if another program changes it, the view refreshes automatically
 (as long as you have no unsaved edits).
 
+**Macros:** in the editor, type `@730` followed by a space and it becomes a link to task 730.
+Change or add macros under **Tools → Macros**.
+
 [^1]: Footnotes appear at the bottom of the document.

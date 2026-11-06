@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using MarkdownViewer.Macros;
 using MarkdownViewer.Rendering;
 using Microsoft.Win32;
 
@@ -54,12 +55,30 @@ public partial class MainWindow : Window
     /// <summary>Watches the open file for changes made by other programs.</summary>
     private FileSystemWatcher? openFileWatcher;
 
+    /// <summary>User settings (currently the text macros), loaded from %APPDATA% at startup.</summary>
+    private AppSettings appSettings;
+
+    /// <summary>Expands macro triggers such as "@730" while typing in the editor.</summary>
+    private MacroExpander macroExpander;
+
+    /// <summary>Characters that end a macro trigger and make it expand (besides whitespace, which always does).</summary>
+    private const string MacroTerminatorCharacters = ".,;:!?)]";
+
     /// <summary>
     /// Creates the main window and opens the given file, or shows the welcome page if none is given.
     /// </summary>
     public MainWindow(string? fileToOpen)
     {
         InitializeComponent();
+
+        // Load the macros. A broken settings file should not stop the app, so fall back to defaults.
+        appSettings = AppSettings.Load(out string? settingsLoadError);
+        macroExpander = new MacroExpander(appSettings.Macros);
+        if (settingsLoadError != null)
+        {
+            MessageBox.Show(settingsLoadError + "\n\nThe default macros are used for now.",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
 
         previewRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         previewRefreshTimer.Tick += (_, _) =>
@@ -516,9 +535,100 @@ public partial class MainWindow : Window
             return;
         }
 
+        ExpandMacroIfJustTyped(changeDetails);
+
         previewRefreshTimer.Stop();
         previewRefreshTimer.Start();
         UpdateTitleAndStatus();
+    }
+
+    // ------------------------------------------------------------------
+    // Macros
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// If the user just typed a space, Enter, Tab or punctuation right after a macro trigger
+    /// (for example "@730"), replaces the trigger with the macro's replacement text.
+    /// </summary>
+    private void ExpandMacroIfJustTyped(TextChangedEventArgs changeDetails)
+    {
+        if (!macroExpander.HasMacros || changeDetails.Changes.Count != 1)
+        {
+            return;
+        }
+
+        // Only react to plain typing: a short insertion that removed nothing (not a paste or a replace).
+        var textChange = changeDetails.Changes.First();
+        if (textChange.RemovedLength != 0 || textChange.AddedLength is < 1 or > 2)
+        {
+            return;
+        }
+
+        string editorText = MarkdownEditor.Text;
+        int insertedAtIndex = textChange.Offset;
+        string insertedText = editorText.Substring(insertedAtIndex, textChange.AddedLength);
+
+        // Enter inserts "\r\n", so up to two characters are accepted, but all of them must end a word.
+        bool insertedOnlyTerminators = insertedText.All(insertedCharacter =>
+            char.IsWhiteSpace(insertedCharacter) || MacroTerminatorCharacters.Contains(insertedCharacter));
+        if (!insertedOnlyTerminators || insertedAtIndex == 0)
+        {
+            return;
+        }
+
+        // Look only at the current line, up to the character that was just typed.
+        int lineStartIndex = editorText.LastIndexOf('\n', insertedAtIndex - 1) + 1;
+        string lineTextBeforeInsertion = editorText[lineStartIndex..insertedAtIndex];
+
+        if (!macroExpander.TryExpandAtEnd(lineTextBeforeInsertion, out int triggerStartInLine, out int triggerLength, out string expandedText))
+        {
+            return;
+        }
+
+        int triggerStartIndex = lineStartIndex + triggerStartInLine;
+        string triggerText = editorText.Substring(triggerStartIndex, triggerLength);
+
+        // Changing the text from inside TextChanged is not allowed, so do the replacement right after.
+        Dispatcher.BeginInvoke(() =>
+        {
+            // Make sure nothing else changed the text in the meantime.
+            if (MarkdownEditor.Text.Length < triggerStartIndex + triggerLength ||
+                MarkdownEditor.Text.Substring(triggerStartIndex, triggerLength) != triggerText)
+            {
+                return;
+            }
+
+            // Replacing through the selection keeps it as one undo step: Ctrl+Z brings "@730" back.
+            MarkdownEditor.Select(triggerStartIndex, triggerLength);
+            MarkdownEditor.SelectedText = expandedText;
+
+            // Put the cursor after the separator the user typed, where it was before.
+            MarkdownEditor.Select(triggerStartIndex + expandedText.Length + insertedText.Length, 0);
+        });
+    }
+
+    /// <summary>Tools → Macros: lets the user edit the macros and saves them to the settings file.</summary>
+    private void MacroSettingsMenuItem_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        var macroSettingsWindow = new MacroSettingsWindow(appSettings.Macros) { Owner = this };
+        if (macroSettingsWindow.ShowDialog() != true)
+        {
+            return;
+        }
+
+        appSettings.Macros = macroSettingsWindow.EditedMacros;
+        macroExpander = new MacroExpander(appSettings.Macros);
+
+        try
+        {
+            appSettings.Save();
+        }
+        catch (Exception saveError)
+        {
+            // The new macros still work for this session even if they could not be stored.
+            MessageBox.Show(this, $"The macros are active now, but could not be saved:\n{AppSettings.SettingsFilePath}\n\n{saveError.Message}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     // ------------------------------------------------------------------
