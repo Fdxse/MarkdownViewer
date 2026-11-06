@@ -183,6 +183,109 @@ public partial class MainWindow
         }
     }
 
+    // ------------------------------------------------------------------
+    // Zip all (backup)
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// File → Zip all: writes every bookshelf file plus the settings into a timestamped zip next to the exe,
+    /// so the whole setup can be moved to another computer by unzipping it there.
+    /// If the exe's folder cannot be written to (e.g. under Program Files), asks where to save the zip instead.
+    /// </summary>
+    private async void ZipAllMenuItem_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        DateTime backupTime = DateTime.Now;
+        string backupFileName = BookshelfBackup.CreateBackupFileName(backupTime);
+
+        // Environment.ProcessPath is the real .exe even for a single-file app; fall back to the base directory just in case.
+        string exeFolderPath = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+        string zipFilePath = Path.Combine(exeFolderPath, backupFileName);
+
+        // Take a snapshot of what to back up on the UI thread; the zipping itself runs in the background.
+        List<string> bookshelfFilePaths = appSettings.BookshelfEntries.Select(bookshelfEntry => bookshelfEntry.FilePath).ToList();
+        string settingsJson = appSettings.ToJson();
+
+        BookshelfBackup.BackupResult? backupResult = await TryCreateBackupAsync(bookshelfFilePaths, settingsJson, zipFilePath, backupTime, reportAccessDenied: false);
+        if (backupResult == null)
+        {
+            // No write access next to the exe: let the user pick another place.
+            var saveDialog = new SaveFileDialog
+            {
+                Title = "Save backup zip",
+                FileName = backupFileName,
+                Filter = "Zip files (*.zip)|*.zip",
+                DefaultExt = ".zip",
+            };
+            if (saveDialog.ShowDialog(this) != true)
+            {
+                return;
+            }
+
+            backupResult = await TryCreateBackupAsync(bookshelfFilePaths, settingsJson, saveDialog.FileName, backupTime, reportAccessDenied: true);
+            if (backupResult == null)
+            {
+                return;
+            }
+        }
+
+        ShowBackupSummary(backupResult);
+    }
+
+    /// <summary>
+    /// Runs the backup on a background thread with a wait cursor, so a slow network share does not freeze the window.
+    /// Returns null if the zip could not be written: an "access denied" error is reported only when
+    /// <paramref name="reportAccessDenied"/> is true (otherwise the caller offers another location); other errors are always reported.
+    /// </summary>
+    private async Task<BookshelfBackup.BackupResult?> TryCreateBackupAsync(
+        List<string> bookshelfFilePaths, string settingsJson, string zipFilePath, DateTime backupTime, bool reportAccessDenied)
+    {
+        Mouse.OverrideCursor = Cursors.Wait;
+        try
+        {
+            return await Task.Run(() => BookshelfBackup.CreateBackup(bookshelfFilePaths, settingsJson, zipFilePath, backupTime));
+        }
+        catch (UnauthorizedAccessException) when (!reportAccessDenied)
+        {
+            return null;
+        }
+        catch (Exception backupError)
+        {
+            MessageBox.Show(this, $"The backup could not be written:\n{zipFilePath}\n\n{backupError.Message}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+            return null;
+        }
+        finally
+        {
+            Mouse.OverrideCursor = null;
+        }
+    }
+
+    /// <summary>Tells the user where the zip is and what was skipped, and offers to show it in Explorer.</summary>
+    private void ShowBackupSummary(BookshelfBackup.BackupResult backupResult)
+    {
+        string summaryText = $"Backed up {backupResult.BackedUpFileCount} file(s) and the settings to:\n{backupResult.ZipFilePath}";
+        if (backupResult.SkippedFiles.Count > 0)
+        {
+            // Show at most a handful here; the full list is in backup-contents.txt inside the zip.
+            const int maximumSkippedFilesShown = 10;
+            summaryText += $"\n\n{backupResult.SkippedFiles.Count} file(s) could not be included:\n"
+                + string.Join("\n", backupResult.SkippedFiles.Take(maximumSkippedFilesShown));
+            if (backupResult.SkippedFiles.Count > maximumSkippedFilesShown)
+            {
+                summaryText += "\n...";
+            }
+        }
+
+        summaryText += "\n\nShow the zip in its folder?";
+        var userAnswer = MessageBox.Show(this, summaryText, "Markdown Viewer",
+            MessageBoxButton.YesNo, backupResult.SkippedFiles.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+        if (userAnswer == MessageBoxResult.Yes)
+        {
+            // Opens Explorer with the zip selected.
+            Process.Start("explorer.exe", $"/select,\"{backupResult.ZipFilePath}\"");
+        }
+    }
+
     /// <summary>The bookshelf entries that are selected in the list.</summary>
     private List<BookshelfEntry> SelectedBookshelfEntries => BookshelfList.SelectedItems.OfType<BookshelfEntry>().ToList();
 

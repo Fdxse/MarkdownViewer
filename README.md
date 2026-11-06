@@ -24,6 +24,11 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   Add them with **Add...**, **Ctrl+D** (adds the open file), or by dropping files or a folder onto the panel.
   Click a file to open it; right-click for *Show in folder*, *Copy path* and *Remove* (the file itself is never deleted).
   Moved or deleted files are greyed out. The bookshelf is stored in `%APPDATA%\MarkdownViewer\settings.json`.
+- **Zip all** (File → Zip all): backs up every bookshelf file plus `settings.json` into a timestamped
+  `MarkdownViewer-backup-<date>_<time>.zip` next to the exe (or a place you pick, if that folder is read-only).
+  Files keep their original folder structure under `files/` (e.g. `files/C/Notes/README.md`), so files with the same
+  name never clash, and `backup-contents.txt` lists each original path plus any missing files. To move to another
+  computer, unzip it and copy `settings.json` to `%APPDATA%\MarkdownViewer\`.
 - **Properties** (under the bookshelf): location, size, created and modified dates, characters, words, lines,
   paragraphs, headings per level, links, images, code blocks, tables, tasks done and an estimated reading time
   for the open document. The numbers follow along while you edit.

@@ -84,11 +84,16 @@ public class AppSettings
         }
     }
 
+    /// <summary>The settings as indented JSON, exactly as <see cref="Save"/> writes them (also used by the zip backup).</summary>
+    public string ToJson()
+    {
+        return JsonSerializer.Serialize(this, JsonOptions);
+    }
+
     /// <summary>Writes the settings file, creating its folder if needed. Throws on failure.</summary>
     public void Save()
     {
         Directory.CreateDirectory(SettingsFolderPath);
-        string settingsJson = JsonSerializer.Serialize(this, JsonOptions);
-        File.WriteAllText(SettingsFilePath, settingsJson);
+        File.WriteAllText(SettingsFilePath, ToJson());
     }
 }
