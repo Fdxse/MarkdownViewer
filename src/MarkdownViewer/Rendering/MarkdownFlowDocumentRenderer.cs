@@ -37,7 +37,7 @@ namespace MarkdownViewer.Rendering;
 public sealed class MarkdownFlowDocumentRenderer
 {
     /// <summary>Shared Markdig pipeline with the common GitHub-style extensions enabled.</summary>
-    private static readonly MarkdownPipeline SharedPipeline = new MarkdownPipelineBuilder()
+    internal static readonly MarkdownPipeline SharedPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions() // tables, task lists, footnotes, auto heading ids, etc.
         .UseEmojiAndSmiley()
         .Build();

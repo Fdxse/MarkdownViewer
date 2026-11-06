@@ -10,6 +10,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using MarkdownViewer.Links;
+using MarkdownViewer.Bookshelf;
 using MarkdownViewer.Macros;
 using MarkdownViewer.Rendering;
 using Microsoft.Win32;
@@ -56,7 +57,7 @@ public partial class MainWindow : Window
     /// <summary>Watches the open file for changes made by other programs.</summary>
     private FileSystemWatcher? openFileWatcher;
 
-    /// <summary>User settings (currently the text macros), loaded from %APPDATA% at startup.</summary>
+    /// <summary>User settings (text macros and the bookshelf), loaded from %APPDATA% at startup.</summary>
     private AppSettings appSettings;
 
     /// <summary>Expands macro triggers such as "@730" while typing in the editor.</summary>
@@ -96,6 +97,9 @@ public partial class MainWindow : Window
             HandleExternalFileChange();
         };
 
+        // Show the bookshelf panel as it was when the app was last closed.
+        InitializeBookshelf();
+
         if (!string.IsNullOrWhiteSpace(fileToOpen) && File.Exists(fileToOpen))
         {
             LoadFile(fileToOpen);
@@ -122,10 +126,8 @@ public partial class MainWindow : Window
 
         FilePathStatusText.Text = currentFilePath ?? "Not saved yet";
 
-        // Simple word count: split on any whitespace.
-        int wordCount = MarkdownEditor.Text
-            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)
-            .Length;
+        // Same word count as in the properties panel (Markdown symbols such as "#" are not counted).
+        int wordCount = DocumentStatistics.CountWords(MarkdownEditor.Text);
         string modeName = isEditMode ? "Editing" : "Viewing";
         string modifiedText = HasUnsavedChanges ? "  |  Modified" : string.Empty;
         DocumentInfoStatusText.Text = $"{modeName}  |  {wordCount:N0} words{modifiedText}";
@@ -152,6 +154,7 @@ public partial class MainWindow : Window
         WatchFile(filePath);
         RenderPreview(keepScrollPosition: false);
         UpdateTitleAndStatus();
+        SelectOpenFileInBookshelf();
     }
 
     /// <summary>Shows the built-in welcome page (embedded in the exe) as an untitled document.</summary>
@@ -199,6 +202,9 @@ public partial class MainWindow : Window
                 FindDescendant<ScrollViewer>(DocumentReader)?.ScrollToVerticalOffset(previousVerticalOffset);
             });
         }
+
+        // The properties panel follows the text, also while editing.
+        UpdatePropertiesPanel();
     }
 
     /// <summary>Searches the visual tree below an element for the first child of a given type.</summary>
@@ -361,8 +367,11 @@ public partial class MainWindow : Window
             if (isNewPath)
             {
                 RenderPreview();
+                SelectOpenFileInBookshelf();
             }
             UpdateTitleAndStatus();
+            // New size and modified date of the saved file.
+            UpdatePropertiesPanel();
             return true;
         }
         catch (Exception writeError)
@@ -812,12 +821,28 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Opens the first file dropped onto the window.</summary>
+    /// <summary>
+    /// Files dropped on the bookshelf are added to it; files dropped anywhere else open
+    /// (the first one) in the viewer.
+    /// </summary>
     private void Window_PreviewDrop(object sender, DragEventArgs dropDetails)
     {
         if (dropDetails.Data.GetData(DataFormats.FileDrop) is string[] droppedPaths && droppedPaths.Length > 0)
         {
             dropDetails.Handled = true;
+
+            if (IsOverBookshelfPanel(dropDetails))
+            {
+                var droppedMarkdownFiles = CollectMarkdownFiles(droppedPaths);
+                if (droppedMarkdownFiles.Count == 0)
+                {
+                    MessageBox.Show(this, "No Markdown files were found in what was dropped.",
+                        "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                AddFilesToBookshelf(droppedMarkdownFiles);
+                return;
+            }
+
             if (ConfirmDiscardUnsavedChanges())
             {
                 LoadFile(droppedPaths[0]);
@@ -835,5 +860,6 @@ public partial class MainWindow : Window
         }
 
         openFileWatcher?.Dispose();
+        SaveBookshelfLayout();
     }
 }

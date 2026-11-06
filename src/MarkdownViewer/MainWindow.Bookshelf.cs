@@ -1,0 +1,640 @@
+using System.Diagnostics;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using MarkdownViewer.Bookshelf;
+using MarkdownViewer.Macros;
+using Microsoft.Win32;
+
+namespace MarkdownViewer;
+
+/// <summary>
+/// The bookshelf part of the main window: a side panel listing Markdown files from anywhere
+/// on disk (stored in the settings file), and a properties panel describing the open document.
+/// </summary>
+public partial class MainWindow
+{
+    /// <summary>Width the bookshelf column had before it was hidden, so showing it again restores it.</summary>
+    private double bookshelfWidthBeforeHiding = 280;
+
+    /// <summary>Smallest width of the bookshelf column while it is visible.</summary>
+    private const double BookshelfMinimumWidth = 150;
+
+    // ------------------------------------------------------------------
+    // Showing and hiding the panel
+    // ------------------------------------------------------------------
+
+    /// <summary>Sets up the bookshelf panel from the saved settings. Called once from the constructor.</summary>
+    private void InitializeBookshelf()
+    {
+        bookshelfWidthBeforeHiding = Math.Max(appSettings.BookshelfPanelWidth, BookshelfMinimumWidth);
+        BookshelfColumn.Width = new GridLength(bookshelfWidthBeforeHiding);
+        SetBookshelfVisible(appSettings.IsBookshelfVisible);
+        RefreshBookshelfList();
+    }
+
+    /// <summary>Shows or hides the bookshelf and properties panel.</summary>
+    private void SetBookshelfVisible(bool showBookshelf)
+    {
+        // Remember the current width before collapsing the column.
+        if (!showBookshelf && BookshelfColumn.ActualWidth > 0)
+        {
+            bookshelfWidthBeforeHiding = BookshelfColumn.ActualWidth;
+        }
+
+        BookshelfColumn.MinWidth = showBookshelf ? BookshelfMinimumWidth : 0;
+        BookshelfColumn.Width = showBookshelf ? new GridLength(bookshelfWidthBeforeHiding) : new GridLength(0);
+        BookshelfPanel.Visibility = showBookshelf ? Visibility.Visible : Visibility.Collapsed;
+        BookshelfSplitter.Visibility = showBookshelf ? Visibility.Visible : Visibility.Collapsed;
+        BookshelfMenuItem.IsChecked = showBookshelf;
+        appSettings.IsBookshelfVisible = showBookshelf;
+
+        if (showBookshelf)
+        {
+            UpdatePropertiesPanel();
+        }
+    }
+
+    /// <summary>Stores the panel width and visibility so the next start looks the same. Errors are ignored.</summary>
+    private void SaveBookshelfLayout()
+    {
+        if (appSettings.IsBookshelfVisible && BookshelfColumn.ActualWidth > 0)
+        {
+            appSettings.BookshelfPanelWidth = BookshelfColumn.ActualWidth;
+        }
+        else
+        {
+            appSettings.BookshelfPanelWidth = bookshelfWidthBeforeHiding;
+        }
+
+        try
+        {
+            appSettings.Save();
+        }
+        catch (Exception)
+        {
+            // Losing the panel width is not worth bothering the user about while the app closes.
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // The list of files
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Rebuilds the list from the settings: sorted by file name, with missing files re-checked.
+    /// Keeps the open file selected.
+    /// </summary>
+    private void RefreshBookshelfList()
+    {
+        foreach (var bookshelfEntry in appSettings.BookshelfEntries)
+        {
+            bookshelfEntry.RefreshFileExists();
+        }
+
+        BookshelfList.ItemsSource = appSettings.BookshelfEntries
+            .OrderBy(bookshelfEntry => bookshelfEntry.FileName, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(bookshelfEntry => bookshelfEntry.FolderPath, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        BookshelfEmptyHint.Visibility = appSettings.BookshelfEntries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectOpenFileInBookshelf();
+    }
+
+    /// <summary>Highlights the open file in the bookshelf list, if it is on the shelf.</summary>
+    private void SelectOpenFileInBookshelf()
+    {
+        var openFileEntry = currentFilePath == null
+            ? null
+            : BookshelfList.Items.OfType<BookshelfEntry>().FirstOrDefault(bookshelfEntry => bookshelfEntry.HasPath(currentFilePath));
+
+        BookshelfList.SelectedItem = openFileEntry;
+        if (openFileEntry != null)
+        {
+            BookshelfList.ScrollIntoView(openFileEntry);
+        }
+    }
+
+    /// <summary>True if the given file is already on the bookshelf.</summary>
+    private bool IsOnBookshelf(string filePath)
+    {
+        return appSettings.BookshelfEntries.Any(bookshelfEntry => bookshelfEntry.HasPath(filePath));
+    }
+
+    /// <summary>
+    /// Puts files on the bookshelf (files already on it are skipped), saves the settings
+    /// and refreshes the list. Returns how many files were added.
+    /// </summary>
+    private int AddFilesToBookshelf(IEnumerable<string> filePaths)
+    {
+        int addedFileCount = 0;
+        foreach (string filePath in filePaths)
+        {
+            string fullPath = Path.GetFullPath(filePath);
+            if (IsOnBookshelf(fullPath))
+            {
+                continue;
+            }
+
+            appSettings.BookshelfEntries.Add(new BookshelfEntry { FilePath = fullPath, AddedOn = DateTime.Now });
+            addedFileCount++;
+        }
+
+        if (addedFileCount > 0)
+        {
+            SaveSettingsOrWarn();
+            RefreshBookshelfList();
+            UpdatePropertiesPanel();
+        }
+        return addedFileCount;
+    }
+
+    /// <summary>Takes files off the bookshelf. The files on disk are not touched.</summary>
+    private void RemoveFromBookshelf(IReadOnlyCollection<BookshelfEntry> entriesToRemove)
+    {
+        if (entriesToRemove.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var entryToRemove in entriesToRemove)
+        {
+            appSettings.BookshelfEntries.Remove(entryToRemove);
+        }
+
+        SaveSettingsOrWarn();
+        RefreshBookshelfList();
+        UpdatePropertiesPanel();
+    }
+
+    /// <summary>Saves the settings file; tells the user (without failing) if that is not possible.</summary>
+    private void SaveSettingsOrWarn()
+    {
+        try
+        {
+            appSettings.Save();
+        }
+        catch (Exception saveError)
+        {
+            MessageBox.Show(this, $"The bookshelf could not be saved:\n{AppSettings.SettingsFilePath}\n\n{saveError.Message}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    /// <summary>The bookshelf entries that are selected in the list.</summary>
+    private List<BookshelfEntry> SelectedBookshelfEntries => BookshelfList.SelectedItems.OfType<BookshelfEntry>().ToList();
+
+    /// <summary>
+    /// Opens a bookshelf file in the viewer. If the file is missing, offers to take it off the shelf.
+    /// </summary>
+    private void OpenBookshelfEntry(BookshelfEntry bookshelfEntry)
+    {
+        // Clicking the file that is already open does nothing.
+        if (currentFilePath != null && bookshelfEntry.HasPath(currentFilePath))
+        {
+            return;
+        }
+
+        if (!File.Exists(bookshelfEntry.FilePath))
+        {
+            var userAnswer = MessageBox.Show(this,
+                $"The file was not found. It may have been moved, renamed or deleted:\n{bookshelfEntry.FilePath}\n\nRemove it from the bookshelf?",
+                "Markdown Viewer", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (userAnswer == MessageBoxResult.Yes)
+            {
+                RemoveFromBookshelf(new[] { bookshelfEntry });
+            }
+            else
+            {
+                RefreshBookshelfList();
+            }
+            return;
+        }
+
+        if (ConfirmDiscardUnsavedChanges())
+        {
+            LoadFile(bookshelfEntry.FilePath);
+        }
+        else
+        {
+            // The user cancelled: keep the highlight on the file that is still open.
+            SelectOpenFileInBookshelf();
+        }
+    }
+
+    /// <summary>Opens Explorer with the given file selected.</summary>
+    private void ShowFileInExplorer(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                // "/select," opens the folder and highlights the file.
+                Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+            }
+            else
+            {
+                string? folderPath = Path.GetDirectoryName(filePath);
+                if (folderPath == null || !Directory.Exists(folderPath))
+                {
+                    MessageBox.Show(this, $"Neither the file nor its folder exists any more:\n{filePath}",
+                        "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                Process.Start(new ProcessStartInfo(folderPath) { UseShellExecute = true });
+            }
+        }
+        catch (Exception openError)
+        {
+            MessageBox.Show(this, $"Could not open the folder:\n{filePath}\n\n{openError.Message}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    /// <summary>
+    /// Expands dropped paths into Markdown files: files are taken as they are (if they are Markdown),
+    /// folders contribute the Markdown files directly inside them (not in subfolders).
+    /// </summary>
+    private static List<string> CollectMarkdownFiles(IEnumerable<string> droppedPaths)
+    {
+        var markdownFilePaths = new List<string>();
+        foreach (string droppedPath in droppedPaths)
+        {
+            if (Directory.Exists(droppedPath))
+            {
+                try
+                {
+                    markdownFilePaths.AddRange(Directory.EnumerateFiles(droppedPath).Where(IsMarkdownFile));
+                }
+                catch (Exception)
+                {
+                    // A folder we may not read is simply skipped.
+                }
+            }
+            else if (File.Exists(droppedPath) && IsMarkdownFile(droppedPath))
+            {
+                markdownFilePaths.Add(droppedPath);
+            }
+        }
+        return markdownFilePaths;
+    }
+
+    /// <summary>True if a drag-and-drop happened over the bookshelf panel (rather than over the document).</summary>
+    private bool IsOverBookshelfPanel(DragEventArgs dragDetails)
+    {
+        return BookshelfPanel.IsVisible
+            && dragDetails.OriginalSource is DependencyObject dropTarget
+            && dropTarget is Visual
+            && BookshelfPanel.IsAncestorOf(dropTarget);
+    }
+
+    // ------------------------------------------------------------------
+    // Properties panel
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// Fills the properties panel for the open document: file information (location, size, dates)
+    /// and text statistics (characters, words, headings, reading time...). Called after every render,
+    /// so the numbers follow along while editing.
+    /// </summary>
+    private void UpdatePropertiesPanel()
+    {
+        // Nothing to do while the panel is hidden; it is refreshed when shown again.
+        if (!appSettings.IsBookshelfVisible)
+        {
+            return;
+        }
+
+        PropertiesGrid.Children.Clear();
+        PropertiesGrid.RowDefinitions.Clear();
+
+        string documentText = MarkdownEditor.Text;
+        var documentStatistics = DocumentStatistics.Calculate(documentText);
+
+        // --- File ---
+        AddPropertySectionHeader("File");
+        if (currentFilePath == null)
+        {
+            AddPropertyRow("Location", "Not saved yet");
+            ShowInFolderButton.IsEnabled = false;
+        }
+        else
+        {
+            ShowInFolderButton.IsEnabled = true;
+            AddPropertyRow("Name", Path.GetFileName(currentFilePath));
+            AddPropertyRow("Folder", Path.GetDirectoryName(currentFilePath) ?? string.Empty);
+
+            var fileDetails = new FileInfo(currentFilePath);
+            if (fileDetails.Exists)
+            {
+                AddPropertyRow("Size", FormatFileSize(fileDetails.Length));
+                AddPropertyRow("Created", FormatDate(fileDetails.CreationTime));
+                AddPropertyRow("Modified", FormatDate(fileDetails.LastWriteTime));
+                AddPropertyRow("Read-only", fileDetails.IsReadOnly ? "Yes" : "No");
+            }
+            else
+            {
+                AddPropertyRow("Status", "File not found on disk");
+            }
+
+            AddPropertyRow("On bookshelf", IsOnBookshelf(currentFilePath) ? "Yes" : "No (Ctrl+D to add)");
+        }
+        if (HasUnsavedChanges)
+        {
+            AddPropertyRow("Changes", "Unsaved edits (counts below include them)");
+        }
+
+        // --- Text ---
+        AddPropertySectionHeader("Text");
+        if (documentStatistics.Title != null)
+        {
+            AddPropertyRow("Title", documentStatistics.Title);
+        }
+        AddPropertyRow("Characters", documentStatistics.CharacterCount.ToString("N0"));
+        AddPropertyRow("Without spaces", documentStatistics.CharacterCountWithoutSpaces.ToString("N0"));
+        AddPropertyRow("Words", documentStatistics.WordCount.ToString("N0"));
+        AddPropertyRow("Lines", $"{documentStatistics.LineCount:N0} ({documentStatistics.BlankLineCount:N0} blank)");
+        AddPropertyRow("Paragraphs", documentStatistics.ParagraphCount.ToString("N0"));
+        AddPropertyRow("Reading time", FormatReadingTime(documentStatistics.EstimatedReadingTime));
+        AddPropertyRow("Line endings", documentStatistics.LineEndingStyle);
+
+        // --- Structure ---
+        AddPropertySectionHeader("Structure");
+        AddPropertyRow("Headings", FormatHeadingCounts(documentStatistics));
+        AddPropertyRow("Links", documentStatistics.LinkCount.ToString("N0"));
+        AddPropertyRow("Images", documentStatistics.ImageCount.ToString("N0"));
+        AddPropertyRow("Code blocks", documentStatistics.CodeBlockCount.ToString("N0"));
+        AddPropertyRow("Tables", documentStatistics.TableCount.ToString("N0"));
+        if (documentStatistics.TaskCount > 0)
+        {
+            AddPropertyRow("Tasks", $"{documentStatistics.CompletedTaskCount:N0} of {documentStatistics.TaskCount:N0} done");
+        }
+    }
+
+    /// <summary>Adds a bold section title ("File", "Text", ...) spanning both columns of the properties grid.</summary>
+    private void AddPropertySectionHeader(string sectionTitle)
+    {
+        int rowIndex = PropertiesGrid.RowDefinitions.Count;
+        PropertiesGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var headerText = new TextBlock
+        {
+            Text = sectionTitle,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x40, 0x40, 0x40)),
+            // Extra space above every section except the first.
+            Margin = new Thickness(0, rowIndex == 0 ? 2 : 10, 0, 2),
+        };
+        Grid.SetRow(headerText, rowIndex);
+        Grid.SetColumnSpan(headerText, 2);
+        PropertiesGrid.Children.Add(headerText);
+    }
+
+    /// <summary>
+    /// Adds one "label: value" row to the properties grid. The value is a read-only text box,
+    /// so it can be selected and copied (handy for the folder path).
+    /// </summary>
+    private void AddPropertyRow(string propertyLabel, string propertyValue)
+    {
+        int rowIndex = PropertiesGrid.RowDefinitions.Count;
+        PropertiesGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var labelText = new TextBlock
+        {
+            Text = propertyLabel,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x70, 0x70, 0x70)),
+            Margin = new Thickness(0, 1, 10, 1),
+        };
+        Grid.SetRow(labelText, rowIndex);
+        Grid.SetColumn(labelText, 0);
+
+        var valueText = new TextBox
+        {
+            Text = propertyValue,
+            IsReadOnly = true,
+            BorderThickness = new Thickness(0),
+            Background = Brushes.Transparent,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0, 1, 0, 1),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        Grid.SetRow(valueText, rowIndex);
+        Grid.SetColumn(valueText, 1);
+
+        PropertiesGrid.Children.Add(labelText);
+        PropertiesGrid.Children.Add(valueText);
+    }
+
+    /// <summary>Formats a byte count as e.g. "12.3 KB (12,595 bytes)".</summary>
+    private static string FormatFileSize(long sizeInBytes)
+    {
+        string[] unitNames = { "bytes", "KB", "MB", "GB" };
+        double scaledSize = sizeInBytes;
+        int unitIndex = 0;
+        while (scaledSize >= 1024 && unitIndex < unitNames.Length - 1)
+        {
+            scaledSize /= 1024;
+            unitIndex++;
+        }
+
+        return unitIndex == 0
+            ? $"{sizeInBytes:N0} bytes"
+            : $"{scaledSize:0.#} {unitNames[unitIndex]} ({sizeInBytes:N0} bytes)";
+    }
+
+    /// <summary>Formats a date as "2026-11-06 09:15" (ISO style, unambiguous in every language).</summary>
+    private static string FormatDate(DateTime dateTime) => dateTime.ToString("yyyy-MM-dd HH:mm");
+
+    /// <summary>Formats the reading time estimate as "less than a minute", "about 4 min" or "about 1 h 20 min".</summary>
+    private static string FormatReadingTime(TimeSpan readingTime)
+    {
+        int totalMinutes = (int)Math.Round(readingTime.TotalMinutes);
+        if (totalMinutes < 1)
+        {
+            return "Less than a minute";
+        }
+        if (totalMinutes < 60)
+        {
+            return $"About {totalMinutes} min";
+        }
+        return $"About {totalMinutes / 60} h {totalMinutes % 60} min";
+    }
+
+    /// <summary>Formats the heading counts as e.g. "7 (H1: 1, H2: 4, H3: 2)".</summary>
+    private static string FormatHeadingCounts(DocumentStatistics documentStatistics)
+    {
+        if (documentStatistics.HeadingCount == 0)
+        {
+            return "0";
+        }
+
+        var levelSummaries = documentStatistics.HeadingCountsByLevel
+            .Select((headingCount, levelIndex) => (HeadingCount: headingCount, Level: levelIndex + 1))
+            .Where(levelCount => levelCount.HeadingCount > 0)
+            .Select(levelCount => $"H{levelCount.Level}: {levelCount.HeadingCount}");
+
+        return $"{documentStatistics.HeadingCount} ({string.Join(", ", levelSummaries)})";
+    }
+
+    // ------------------------------------------------------------------
+    // Event handlers
+    // ------------------------------------------------------------------
+
+    /// <summary>View → Bookshelf and properties (Ctrl+B).</summary>
+    private void ToggleBookshelfCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails)
+    {
+        SetBookshelfVisible(!appSettings.IsBookshelfVisible);
+    }
+
+    /// <summary>File → Add to bookshelf (Ctrl+D) is available when a saved file that is not on the shelf yet is open.</summary>
+    private void AddToBookshelfCommand_CanExecute(object sender, CanExecuteRoutedEventArgs canExecuteDetails)
+    {
+        canExecuteDetails.CanExecute = currentFilePath != null && !IsOnBookshelf(currentFilePath);
+    }
+
+    /// <summary>File → Add to bookshelf (Ctrl+D): puts the open file on the shelf and shows the panel.</summary>
+    private void AddToBookshelfCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails)
+    {
+        if (currentFilePath == null)
+        {
+            return;
+        }
+
+        AddFilesToBookshelf(new[] { currentFilePath });
+        if (!appSettings.IsBookshelfVisible)
+        {
+            SetBookshelfVisible(true);
+        }
+    }
+
+    /// <summary>"Add..." button and File menu: picks one or more Markdown files from anywhere and puts them on the shelf.</summary>
+    private void AddFilesToBookshelfButton_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        var openDialog = new OpenFileDialog
+        {
+            Title = "Add files to the bookshelf",
+            Filter = MarkdownFileDialogFilter,
+            Multiselect = true,
+            InitialDirectory = currentFilePath != null ? Path.GetDirectoryName(currentFilePath) : null,
+        };
+
+        if (openDialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        AddFilesToBookshelf(openDialog.FileNames);
+        if (!appSettings.IsBookshelfVisible)
+        {
+            SetBookshelfVisible(true);
+        }
+    }
+
+    /// <summary>"Remove" button and context menu: takes the selected files off the shelf.</summary>
+    private void RemoveFromBookshelfButton_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        RemoveFromBookshelf(SelectedBookshelfEntries);
+    }
+
+    /// <summary>A single click on a bookshelf file opens it.</summary>
+    private void BookshelfList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs clickDetails)
+    {
+        // Ctrl/Shift-click is for selecting several files (e.g. to remove them), not for opening.
+        if (Keyboard.Modifiers != ModifierKeys.None)
+        {
+            return;
+        }
+
+        // Find the list item under the mouse; clicks on empty space or the scroll bar are ignored.
+        if (clickDetails.OriginalSource is DependencyObject clickedElement
+            && ItemsControl.ContainerFromElement(BookshelfList, clickedElement) is ListBoxItem clickedListItem
+            && clickedListItem.DataContext is BookshelfEntry clickedEntry)
+        {
+            OpenBookshelfEntry(clickedEntry);
+        }
+    }
+
+    /// <summary>Enter opens the selected file, Delete takes the selected files off the shelf.</summary>
+    private void BookshelfList_KeyDown(object sender, KeyEventArgs keyDetails)
+    {
+        if (keyDetails.Key == Key.Enter && BookshelfList.SelectedItem is BookshelfEntry selectedEntry)
+        {
+            OpenBookshelfEntry(selectedEntry);
+            keyDetails.Handled = true;
+        }
+        else if (keyDetails.Key == Key.Delete)
+        {
+            RemoveFromBookshelf(SelectedBookshelfEntries);
+            keyDetails.Handled = true;
+        }
+    }
+
+    /// <summary>Context menu → Open.</summary>
+    private void OpenBookshelfEntryMenuItem_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        if (BookshelfList.SelectedItem is BookshelfEntry selectedEntry)
+        {
+            OpenBookshelfEntry(selectedEntry);
+        }
+    }
+
+    /// <summary>Context menu → Show in folder.</summary>
+    private void ShowBookshelfEntryInFolderMenuItem_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        if (BookshelfList.SelectedItem is BookshelfEntry selectedEntry)
+        {
+            ShowFileInExplorer(selectedEntry.FilePath);
+        }
+    }
+
+    /// <summary>Context menu → Copy path: puts the full paths of the selected files on the clipboard, one per line.</summary>
+    private void CopyBookshelfEntryPathMenuItem_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        var selectedPaths = SelectedBookshelfEntries.Select(bookshelfEntry => bookshelfEntry.FilePath).ToList();
+        if (selectedPaths.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            Clipboard.SetText(string.Join(Environment.NewLine, selectedPaths));
+        }
+        catch (Exception)
+        {
+            // Another program may be holding the clipboard; nothing useful to do about it.
+        }
+    }
+
+    /// <summary>"Show in folder" button in the properties panel.</summary>
+    private void ShowCurrentFileInFolderButton_Click(object sender, RoutedEventArgs clickDetails)
+    {
+        if (currentFilePath != null)
+        {
+            ShowFileInExplorer(currentFilePath);
+        }
+    }
+
+    /// <summary>
+    /// When the user comes back to the window, files may have been moved or edited elsewhere,
+    /// so the "file not found" marks and the file properties are refreshed.
+    /// </summary>
+    private void Window_Activated(object? sender, EventArgs activationDetails)
+    {
+        if (!appSettings.IsBookshelfVisible)
+        {
+            return;
+        }
+
+        // Only rebuild the list when a file appeared or disappeared, so the list does not jump around.
+        bool anyFileExistenceChanged = appSettings.BookshelfEntries
+            .Any(bookshelfEntry => bookshelfEntry.FileExists != File.Exists(bookshelfEntry.FilePath));
+        if (anyFileExistenceChanged)
+        {
+            RefreshBookshelfList();
+        }
+        UpdatePropertiesPanel();
+    }
+}

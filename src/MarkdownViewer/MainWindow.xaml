@@ -9,6 +9,7 @@
         AllowDrop="True"
         PreviewDragOver="Window_PreviewDragOver"
         PreviewDrop="Window_PreviewDrop"
+        Activated="Window_Activated"
         Closing="Window_Closing">
 
     <!-- Keyboard shortcuts and menu commands are routed through these bindings. -->
@@ -21,6 +22,8 @@
         <CommandBinding Command="ApplicationCommands.Close" Executed="CloseCommand_Executed" />
         <CommandBinding Command="local:AppCommands.ToggleEditMode" Executed="ToggleEditModeCommand_Executed" />
         <CommandBinding Command="local:AppCommands.Reload" Executed="ReloadCommand_Executed" CanExecute="ReloadCommand_CanExecute" />
+        <CommandBinding Command="local:AppCommands.ToggleBookshelf" Executed="ToggleBookshelfCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.AddToBookshelf" Executed="AddToBookshelfCommand_Executed" CanExecute="AddToBookshelfCommand_CanExecute" />
     </Window.CommandBindings>
 
     <!-- Ctrl+Shift+S is not a built-in gesture for Save As, so it is added here. -->
@@ -36,6 +39,9 @@
                 <MenuItem Header="_Open..." Command="ApplicationCommands.Open" />
                 <MenuItem Header="_Reload" Command="local:AppCommands.Reload" />
                 <Separator />
+                <MenuItem Header="Add to _bookshelf" Command="local:AppCommands.AddToBookshelf" />
+                <MenuItem Header="Add files to boo_kshelf..." Click="AddFilesToBookshelfButton_Click" />
+                <Separator />
                 <MenuItem Header="_Save" Command="ApplicationCommands.Save" />
                 <MenuItem Header="Save _As..." Command="ApplicationCommands.SaveAs" InputGestureText="Ctrl+Shift+S" />
                 <Separator />
@@ -45,6 +51,7 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem x:Name="EditModeMenuItem" Header="_Edit mode (side by side)" Command="local:AppCommands.ToggleEditMode" IsCheckable="False" />
+                <MenuItem x:Name="BookshelfMenuItem" Header="_Bookshelf and properties" Command="local:AppCommands.ToggleBookshelf" IsCheckable="False" />
                 <Separator />
                 <MenuItem Header="Zoom _in" Command="NavigationCommands.IncreaseZoom" CommandTarget="{Binding ElementName=DocumentReader}" InputGestureText="Ctrl+Wheel up" />
                 <MenuItem Header="Zoom _out" Command="NavigationCommands.DecreaseZoom" CommandTarget="{Binding ElementName=DocumentReader}" InputGestureText="Ctrl+Wheel down" />
@@ -70,45 +77,156 @@
             </StatusBarItem>
         </StatusBar>
 
-        <!-- Editor (left, hidden in view mode) and rendered document (right) -->
-        <Grid x:Name="ContentGrid">
+        <!-- Main area: bookshelf and properties (left), editor and viewer (right) -->
+        <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="EditorColumn" Width="0" />
-                <ColumnDefinition x:Name="SplitterColumn" Width="0" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="BookshelfColumn" Width="280" MinWidth="150" />
+                <ColumnDefinition x:Name="BookshelfSplitterColumn" Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="200" />
             </Grid.ColumnDefinitions>
 
-            <!-- Plain text Markdown editor -->
-            <TextBox x:Name="MarkdownEditor"
-                     Grid.Column="0"
-                     Visibility="Collapsed"
-                     AcceptsReturn="True"
-                     AcceptsTab="True"
-                     TextWrapping="Wrap"
-                     FontFamily="Cascadia Mono, Consolas, Courier New"
-                     FontSize="13"
-                     Padding="8"
-                     BorderThickness="0"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Disabled"
-                     SpellCheck.IsEnabled="False"
-                     TextChanged="MarkdownEditor_TextChanged" />
+            <!-- Bookshelf panel: Markdown files from anywhere on disk, and the properties of the open document -->
+            <Grid x:Name="BookshelfPanel" Grid.Column="0" Background="#F7F7F7">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="80" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" MinHeight="80" />
+                </Grid.RowDefinitions>
 
-            <GridSplitter x:Name="EditorSplitter"
+                <!-- Bookshelf header with add/remove buttons -->
+                <DockPanel Grid.Row="0" Margin="8,6,6,4">
+                    <Button DockPanel.Dock="Right" Content="Remove" Padding="6,1" Margin="4,0,0,0"
+                            ToolTip="Remove the selected files from the bookshelf (the files themselves are not deleted)"
+                            Click="RemoveFromBookshelfButton_Click" />
+                    <Button DockPanel.Dock="Right" Content="Add..." Padding="6,1"
+                            ToolTip="Add Markdown files to the bookshelf"
+                            Click="AddFilesToBookshelfButton_Click" />
+                    <TextBlock Text="Bookshelf" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <!-- The list of files. Click a file to open it; drop files here to add them. -->
+                <Grid Grid.Row="1">
+                    <ListBox x:Name="BookshelfList"
+                             SelectionMode="Extended"
+                             BorderThickness="0,1,0,0"
+                             BorderBrush="#E0E0E0"
+                             Background="Transparent"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             PreviewMouseLeftButtonUp="BookshelfList_PreviewMouseLeftButtonUp"
+                             KeyDown="BookshelfList_KeyDown">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel x:Name="EntryPanel" Margin="2,3" ToolTip="{Binding FilePath}">
+                                    <TextBlock x:Name="FileNameText" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding FolderPath}" FontSize="11" Foreground="#707070" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="MissingFileText" Text="File not found" FontSize="11" Foreground="#B00020" Visibility="Collapsed" />
+                                </StackPanel>
+                                <DataTemplate.Triggers>
+                                    <!-- Grey out files that were moved or deleted -->
+                                    <DataTrigger Binding="{Binding FileExists}" Value="False">
+                                        <Setter TargetName="EntryPanel" Property="Opacity" Value="0.6" />
+                                        <Setter TargetName="FileNameText" Property="TextDecorations" Value="Strikethrough" />
+                                        <Setter TargetName="MissingFileText" Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="_Open" Click="OpenBookshelfEntryMenuItem_Click" />
+                                <MenuItem Header="Show in _folder" Click="ShowBookshelfEntryInFolderMenuItem_Click" />
+                                <MenuItem Header="_Copy path" Click="CopyBookshelfEntryPathMenuItem_Click" />
+                                <Separator />
+                                <MenuItem Header="_Remove from bookshelf" InputGestureText="Del" Click="RemoveFromBookshelfButton_Click" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                    </ListBox>
+
+                    <!-- Shown instead of the list while the bookshelf is empty -->
+                    <TextBlock x:Name="BookshelfEmptyHint"
+                               Margin="12"
+                               TextWrapping="Wrap"
+                               Foreground="#707070"
+                               IsHitTestVisible="False"
+                               Text="Your bookshelf is empty. Click Add..., press Ctrl+D to add the open file, or drop Markdown files (or a folder) here." />
+                </Grid>
+
+                <!-- Lets the user share the height between the list and the properties -->
+                <GridSplitter Grid.Row="2"
+                              Height="5"
+                              HorizontalAlignment="Stretch"
+                              ResizeDirection="Rows"
+                              ResizeBehavior="PreviousAndNext"
+                              Background="#E0E0E0" />
+
+                <!-- Properties of the open document -->
+                <DockPanel Grid.Row="3">
+                    <DockPanel DockPanel.Dock="Top" Margin="8,6,6,4">
+                        <Button DockPanel.Dock="Right" Content="Show in folder" Padding="6,1" x:Name="ShowInFolderButton"
+                                ToolTip="Open the folder of this file in Explorer"
+                                Click="ShowCurrentFileInFolderButton_Click" />
+                        <TextBlock Text="Properties" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <!-- Filled in code: one row per property, label on the left and value on the right -->
+                        <Grid x:Name="PropertiesGrid" Margin="8,0,8,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                        </Grid>
+                    </ScrollViewer>
+                </DockPanel>
+            </Grid>
+
+            <GridSplitter x:Name="BookshelfSplitter"
                           Grid.Column="1"
                           Width="5"
-                          Visibility="Collapsed"
                           HorizontalAlignment="Stretch"
                           Background="#E0E0E0"
                           ResizeBehavior="PreviousAndNext" />
 
-            <!-- Rendered Markdown. FlowDocumentReader provides scrolling, zoom, find and page modes. -->
-            <FlowDocumentReader x:Name="DocumentReader"
-                                Grid.Column="2"
-                                ViewingMode="Scroll"
-                                IsFindEnabled="True"
-                                IsPrintEnabled="False"
-                                Background="White" />
+            <!-- Editor (left, hidden in view mode) and rendered document (right) -->
+            <Grid x:Name="ContentGrid" Grid.Column="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="EditorColumn" Width="0" />
+                    <ColumnDefinition x:Name="SplitterColumn" Width="0" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Plain text Markdown editor -->
+                <TextBox x:Name="MarkdownEditor"
+                         Grid.Column="0"
+                         Visibility="Collapsed"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         TextWrapping="Wrap"
+                         FontFamily="Cascadia Mono, Consolas, Courier New"
+                         FontSize="13"
+                         Padding="8"
+                         BorderThickness="0"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Disabled"
+                         SpellCheck.IsEnabled="False"
+                         TextChanged="MarkdownEditor_TextChanged" />
+
+                <GridSplitter x:Name="EditorSplitter"
+                              Grid.Column="1"
+                              Width="5"
+                              Visibility="Collapsed"
+                              HorizontalAlignment="Stretch"
+                              Background="#E0E0E0"
+                              ResizeBehavior="PreviousAndNext" />
+
+                <!-- Rendered Markdown. FlowDocumentReader provides scrolling, zoom, find and page modes. -->
+                <FlowDocumentReader x:Name="DocumentReader"
+                                    Grid.Column="2"
+                                    ViewingMode="Scroll"
+                                    IsFindEnabled="True"
+                                    IsPrintEnabled="False"
+                                    Background="White" />
+            </Grid>
         </Grid>
     </DockPanel>
 </Window>
