@@ -29,8 +29,9 @@ Open a Markdown file with **File → Open** (Ctrl+O), or drag and drop one onto 
 > Block quotes look like this.
 
 ```csharp
-// Code blocks keep their formatting
-Console.WriteLine("Hello, Markdown!");
+// Code blocks keep their formatting and get syntax colors
+var greeting = "Hello, Markdown!";
+Console.WriteLine(greeting); // ```sql, ```json, ```xml ... work too
 ```
 
 Mermaid code blocks are drawn as diagrams:
