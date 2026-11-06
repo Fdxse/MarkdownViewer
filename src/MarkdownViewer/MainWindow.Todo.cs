@@ -86,7 +86,9 @@ public partial class MainWindow
         var taskPrompt = new TextPromptWindow(
             "Add task",
             $"New task. It is added at the top of \"{sectionHeading}\" in {TodoDocument.FileName}:",
-            initialText: string.Empty)
+            initialText: string.Empty,
+            // Macros such as "@730" expand in the task text just like in the editor.
+            macroExpander: macroExpander)
         { Owner = this };
 
         if (taskPrompt.ShowDialog() != true || string.IsNullOrWhiteSpace(taskPrompt.AnswerText))
