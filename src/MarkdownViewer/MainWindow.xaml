@@ -1,0 +1,108 @@
+<Window x:Class="MarkdownViewer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:MarkdownViewer"
+        Title="Markdown Viewer"
+        Width="1100" Height="800"
+        MinWidth="480" MinHeight="320"
+        WindowStartupLocation="CenterScreen"
+        AllowDrop="True"
+        PreviewDragOver="Window_PreviewDragOver"
+        PreviewDrop="Window_PreviewDrop"
+        Closing="Window_Closing">
+
+    <!-- Keyboard shortcuts and menu commands are routed through these bindings. -->
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.New" Executed="NewCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.Open" Executed="OpenCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.SaveAs" Executed="SaveAsCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.Print" Executed="PrintCommand_Executed" />
+        <CommandBinding Command="ApplicationCommands.Close" Executed="CloseCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.ToggleEditMode" Executed="ToggleEditModeCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.Reload" Executed="ReloadCommand_Executed" CanExecute="ReloadCommand_CanExecute" />
+    </Window.CommandBindings>
+
+    <!-- Ctrl+Shift+S is not a built-in gesture for Save As, so it is added here. -->
+    <Window.InputBindings>
+        <KeyBinding Command="ApplicationCommands.SaveAs" Gesture="Ctrl+Shift+S" />
+    </Window.InputBindings>
+
+    <DockPanel>
+        <!-- Main menu -->
+        <Menu DockPanel.Dock="Top" Padding="2">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New" Command="ApplicationCommands.New" />
+                <MenuItem Header="_Open..." Command="ApplicationCommands.Open" />
+                <MenuItem Header="_Reload" Command="local:AppCommands.Reload" />
+                <Separator />
+                <MenuItem Header="_Save" Command="ApplicationCommands.Save" />
+                <MenuItem Header="Save _As..." Command="ApplicationCommands.SaveAs" InputGestureText="Ctrl+Shift+S" />
+                <Separator />
+                <MenuItem Header="_Print..." Command="ApplicationCommands.Print" />
+                <Separator />
+                <MenuItem Header="E_xit" Command="ApplicationCommands.Close" InputGestureText="Alt+F4" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem x:Name="EditModeMenuItem" Header="_Edit mode (side by side)" Command="local:AppCommands.ToggleEditMode" IsCheckable="False" />
+                <Separator />
+                <MenuItem Header="Zoom _in" Command="NavigationCommands.IncreaseZoom" CommandTarget="{Binding ElementName=DocumentReader}" InputGestureText="Ctrl+Wheel up" />
+                <MenuItem Header="Zoom _out" Command="NavigationCommands.DecreaseZoom" CommandTarget="{Binding ElementName=DocumentReader}" InputGestureText="Ctrl+Wheel down" />
+                <MenuItem Header="_Reset zoom" Click="ResetZoomMenuItem_Click" />
+                <Separator />
+                <MenuItem Header="_Find..." Command="ApplicationCommands.Find" CommandTarget="{Binding ElementName=DocumentReader}" />
+            </MenuItem>
+        </Menu>
+
+        <!-- Status bar along the bottom -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="FilePathStatusText" Text="No file" TextTrimming="CharacterEllipsis" />
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="DocumentInfoStatusText" />
+            </StatusBarItem>
+        </StatusBar>
+
+        <!-- Editor (left, hidden in view mode) and rendered document (right) -->
+        <Grid x:Name="ContentGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="EditorColumn" Width="0" />
+                <ColumnDefinition x:Name="SplitterColumn" Width="0" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Plain text Markdown editor -->
+            <TextBox x:Name="MarkdownEditor"
+                     Grid.Column="0"
+                     Visibility="Collapsed"
+                     AcceptsReturn="True"
+                     AcceptsTab="True"
+                     TextWrapping="Wrap"
+                     FontFamily="Cascadia Mono, Consolas, Courier New"
+                     FontSize="13"
+                     Padding="8"
+                     BorderThickness="0"
+                     VerticalScrollBarVisibility="Auto"
+                     HorizontalScrollBarVisibility="Disabled"
+                     SpellCheck.IsEnabled="False"
+                     TextChanged="MarkdownEditor_TextChanged" />
+
+            <GridSplitter x:Name="EditorSplitter"
+                          Grid.Column="1"
+                          Width="5"
+                          Visibility="Collapsed"
+                          HorizontalAlignment="Stretch"
+                          Background="#E0E0E0"
+                          ResizeBehavior="PreviousAndNext" />
+
+            <!-- Rendered Markdown. FlowDocumentReader provides scrolling, zoom, find and page modes. -->
+            <FlowDocumentReader x:Name="DocumentReader"
+                                Grid.Column="2"
+                                ViewingMode="Scroll"
+                                IsFindEnabled="True"
+                                IsPrintEnabled="False"
+                                Background="White" />
+        </Grid>
+    </DockPanel>
+</Window>

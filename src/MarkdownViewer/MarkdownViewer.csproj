@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- General application settings -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MarkdownViewer</AssemblyName>
+    <RootNamespace>MarkdownViewer</RootNamespace>
+    <Product>Markdown Viewer</Product>
+    <!-- Default version for local builds; CI overrides it with -p:Version=... -->
+    <Version>1.0.0</Version>
+    <!-- Lets the project be built on non-Windows machines (e.g. Linux CI agents) -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <!-- Publish settings: one self-contained .exe that needs no installed .NET runtime -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- WPF ships native DLLs; bundle them into the exe too so it stays a single file -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Shrinks the exe considerably at the cost of a slightly slower first start -->
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- No separate .pdb next to the exe -->
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Start page shown when no file is open -->
+    <EmbeddedResource Include="Assets\Welcome.md" LogicalName="MarkdownViewer.Welcome.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Markdown parser (BSD-2-Clause licensed), approved by the project owner -->
+    <PackageReference Include="Markdig" Version="1.4.2" />
+  </ItemGroup>
+
+</Project>

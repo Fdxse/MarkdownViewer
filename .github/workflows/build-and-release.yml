@@ -1,0 +1,73 @@
+# Builds the single-file Windows exe on every pull request, and publishes a
+# GitHub Release with that exe every time something is merged (pushed) to main.
+name: Build and release
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  # Allows a manual run from the Actions tab (it only creates a release when run on main).
+  workflow_dispatch:
+
+# Default to read-only; only the release job below is allowed to write.
+permissions:
+  contents: read
+
+env:
+  PROJECT_PATH: src/MarkdownViewer/MarkdownViewer.csproj
+  # Version number shown in the exe's file properties and used for the release tag.
+  APP_VERSION: 1.0.${{ github.run_number }}
+
+jobs:
+  build:
+    name: Build single-file exe
+    # WPF apps are built on Windows to match the target platform exactly.
+    runs-on: windows-latest
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      # Settings for self-contained single-file output live in the .csproj.
+      - name: Publish
+        run: dotnet publish ${{ env.PROJECT_PATH }} --configuration Release -p:Version=${{ env.APP_VERSION }} --output publish
+
+      - name: Upload the exe as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MarkdownViewer-${{ env.APP_VERSION }}
+          path: publish/MarkdownViewer.exe
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    # Only for merges to main (or a manual run on main), never for pull requests.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to create the tag and the release
+    steps:
+      - name: Download the exe built above
+        uses: actions/download-artifact@v4
+        with:
+          name: MarkdownViewer-${{ env.APP_VERSION }}
+          path: release-files
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Tag the exact commit that was built, attach the exe, and let GitHub
+          # write release notes from the merged pull requests.
+          gh release create "v${APP_VERSION}" \
+            "release-files/MarkdownViewer.exe" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "Markdown Viewer ${APP_VERSION}" \
+            --generate-notes
