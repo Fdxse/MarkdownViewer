@@ -63,6 +63,11 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   (default `## Todo`; matched by heading text, added at the end of the file if missing). If the section already has
   tasks, the new one goes directly above the first of them, so text you put between the heading and the list stays put.
   Nothing else in the file is touched. Macros (e.g. `@730`) expand in the task text too. **Ctrl+T** opens the list. Zip all includes `todo.md` too.
+- **Sort sections**: right-click a heading in the viewer → *Sort the N "###" sections under "Parent"*. It sorts that
+  heading and its siblings (same level, same parent); each section's text and subsections move with it. Flavours:
+  alphabetical A→Z / Z→A (natural numbers: 2 before 10), date in heading newest/oldest first (2026-11-07, 07/11/2026,
+  7 nov 2026; headings without a date go last), most open tasks first, reverse, or *Reorder by hand...* (drag and drop,
+  Alt+Up/Down). The file is saved at once; **Ctrl+Z** (or *Undo last sort* in the same menu) puts it back.
 - **Task check boxes** in any document are clickable: ticking one changes `[ ]` to `[x]` (or back) in the file
   and saves it straight away.
 - **Properties** (under the bookshelf): location, size, created and modified dates, characters, words, lines,

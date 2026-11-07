@@ -97,6 +97,9 @@ public partial class MainWindow : Window
             HandleExternalFileChange();
         };
 
+        // Ctrl+Z outside the editor undoes the last section sort.
+        PreviewKeyDown += SectionSort_PreviewKeyDown;
+
         // Show the bookshelf panel as it was when the app was last closed.
         InitializeBookshelf();
 
@@ -194,6 +197,8 @@ public partial class MainWindow : Window
         try
         {
             DocumentReader.Document = currentRenderer.Render(MarkdownEditor.Text);
+            // Right-click on a heading offers "Sort sections at this level".
+            AttachSectionSortMenus(currentRenderer.TopLevelHeadings);
         }
         catch (Exception renderError)
         {
