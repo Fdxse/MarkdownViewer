@@ -54,6 +54,15 @@ public sealed class MarkdownFlowDocumentRenderer
     /// <summary>Headings that have an id (e.g. "#getting-started"), so in-document links can jump to them.</summary>
     private readonly Dictionary<string, TextElement> headingElementsById = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Headings that sit directly in the document (not inside a quote or list), with their 0-based source line.
+    /// The main window uses these to give each heading a "Sort sections" right-click menu.
+    /// </summary>
+    private readonly List<(Paragraph HeadingParagraph, int SourceLineIndex)> topLevelHeadings = new();
+
+    /// <summary>Headings directly in the document with their source line, filled by <see cref="Render"/>.</summary>
+    public IReadOnlyList<(Paragraph HeadingParagraph, int SourceLineIndex)> TopLevelHeadings => topLevelHeadings;
+
     /// <summary>Invoked when the user clicks a hyperlink. The argument is the raw link target.</summary>
     private readonly Action<string, MarkdownFlowDocumentRenderer> linkClickHandler;
 
@@ -101,6 +110,7 @@ public sealed class MarkdownFlowDocumentRenderer
     public FlowDocument Render(string markdownText)
     {
         headingElementsById.Clear();
+        topLevelHeadings.Clear();
 
         var parsedDocument = Markdig.Markdown.Parse(markdownText, SharedPipeline);
 
@@ -232,6 +242,12 @@ public sealed class MarkdownFlowDocumentRenderer
         if (!string.IsNullOrEmpty(headingId))
         {
             headingElementsById.TryAdd(headingId, headingParagraph);
+        }
+
+        // Only headings directly in the document can be sorted (a heading inside a quote is not a section).
+        if (headingBlock.Parent is MarkdownDocument)
+        {
+            topLevelHeadings.Add((headingParagraph, headingBlock.Line));
         }
 
         return headingParagraph;
