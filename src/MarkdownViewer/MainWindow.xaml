@@ -134,6 +134,8 @@
                                           ToolTip="A bookshelf that always lists the Markdown files in a folder you choose" />
                                 <MenuItem Header="New _query bookshelf..." Click="NewQueryShelfMenuItem_Click"
                                           ToolTip="A bookshelf of saved SQL Server queries; opening one runs it and shows the result as a document" />
+                                <MenuItem Header="New _post-it board..." Click="NewPostItBoardMenuItem_Click"
+                                          ToolTip="A folder bookshelf whose Markdown files are shown as yellow post-it notes instead of one document at a time" />
                                 <Separator />
                                 <MenuItem Header="_Rename this bookshelf..." Tag="RenameShelf" Click="RenameShelfMenuItem_Click" />
                                 <MenuItem Header="_Delete this bookshelf..." Tag="DeleteShelf" Click="DeleteShelfMenuItem_Click" />
@@ -141,6 +143,8 @@
                                 <!-- Only for folder bookshelves -->
                                 <MenuItem Header="Include _subfolders" Tag="IncludeSubfolders" Click="IncludeSubfoldersMenuItem_Click" />
                                 <MenuItem Header="_Open the folder" Tag="OpenShelfFolder" Click="OpenShelfFolderMenuItem_Click" />
+                                <!-- Folder bookshelves only: switches between a plain file list and the post-it board -->
+                                <MenuItem Header="Show as post-it _board" Tag="ShowAsPostItBoard" Click="ShowAsPostItBoardMenuItem_Click" />
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>
@@ -249,46 +253,86 @@
                           Background="#E0E0E0"
                           ResizeBehavior="PreviousAndNext" />
 
-            <!-- Editor (left, hidden in view mode) and rendered document (right) -->
-            <Grid x:Name="ContentGrid" Grid.Column="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="EditorColumn" Width="0" />
-                    <ColumnDefinition x:Name="SplitterColumn" Width="0" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <!-- Document area: the "back to the board" bar on top, and below it either the document or the post-it board -->
+            <DockPanel Grid.Column="2">
+                <!-- Shown above a document opened from a post-it board, so the user can get back to the notes -->
+                <Border x:Name="BackToPostItBoardBar"
+                        DockPanel.Dock="Top"
+                        Visibility="Collapsed"
+                        Background="#FFF68F"
+                        BorderBrush="#E0D46A"
+                        BorderThickness="0,0,0,1"
+                        Padding="8,4">
+                    <DockPanel>
+                        <Button Content="← Back to the post-it board" Padding="8,2"
+                                ToolTip="Show all the notes on this board again"
+                                Click="BackToPostItBoardButton_Click" />
+                        <TextBlock x:Name="BackToPostItBoardText" Margin="10,0,0,0" VerticalAlignment="Center"
+                                   Foreground="#5C5300" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                </Border>
 
-                <!-- Plain text Markdown editor -->
-                <TextBox x:Name="MarkdownEditor"
-                         Grid.Column="0"
-                         Visibility="Collapsed"
-                         AcceptsReturn="True"
-                         AcceptsTab="True"
-                         TextWrapping="Wrap"
-                         FontFamily="Cascadia Mono, Consolas, Courier New"
-                         FontSize="13"
-                         Padding="8"
-                         BorderThickness="0"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Disabled"
-                         SpellCheck.IsEnabled="False"
-                         TextChanged="MarkdownEditor_TextChanged" />
+                <Grid>
+                    <!-- Editor (left, hidden in view mode) and rendered document (right) -->
+                    <Grid x:Name="ContentGrid">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="EditorColumn" Width="0" />
+                            <ColumnDefinition x:Name="SplitterColumn" Width="0" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                <GridSplitter x:Name="EditorSplitter"
-                              Grid.Column="1"
-                              Width="5"
-                              Visibility="Collapsed"
-                              HorizontalAlignment="Stretch"
-                              Background="#E0E0E0"
-                              ResizeBehavior="PreviousAndNext" />
+                        <!-- Plain text Markdown editor -->
+                        <TextBox x:Name="MarkdownEditor"
+                                 Grid.Column="0"
+                                 Visibility="Collapsed"
+                                 AcceptsReturn="True"
+                                 AcceptsTab="True"
+                                 TextWrapping="Wrap"
+                                 FontFamily="Cascadia Mono, Consolas, Courier New"
+                                 FontSize="13"
+                                 Padding="8"
+                                 BorderThickness="0"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Disabled"
+                                 SpellCheck.IsEnabled="False"
+                                 TextChanged="MarkdownEditor_TextChanged" />
 
-                <!-- Rendered Markdown. FlowDocumentReader provides scrolling, zoom, find and page modes. -->
-                <FlowDocumentReader x:Name="DocumentReader"
-                                    Grid.Column="2"
-                                    ViewingMode="Scroll"
-                                    IsFindEnabled="True"
-                                    IsPrintEnabled="False"
-                                    Background="White" />
-            </Grid>
+                        <GridSplitter x:Name="EditorSplitter"
+                                      Grid.Column="1"
+                                      Width="5"
+                                      Visibility="Collapsed"
+                                      HorizontalAlignment="Stretch"
+                                      Background="#E0E0E0"
+                                      ResizeBehavior="PreviousAndNext" />
+
+                        <!-- Rendered Markdown. FlowDocumentReader provides scrolling, zoom, find and page modes. -->
+                        <FlowDocumentReader x:Name="DocumentReader"
+                                            Grid.Column="2"
+                                            ViewingMode="Scroll"
+                                            IsFindEnabled="True"
+                                            IsPrintEnabled="False"
+                                            Background="White" />
+                    </Grid>
+
+                    <!-- The post-it board: one yellow note per Markdown file in the board's folder. Filled in code (MainWindow.PostItBoard.cs). -->
+                    <ScrollViewer x:Name="PostItBoardView"
+                                  Visibility="Collapsed"
+                                  Background="#ECE5D3"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Focusable="False">
+                        <StackPanel Margin="16,12,16,16">
+                            <!-- Board name, and the folder it shows -->
+                            <TextBlock x:Name="PostItBoardTitleText" FontSize="20" FontWeight="SemiBold" Foreground="#3D3A30" />
+                            <TextBlock x:Name="PostItBoardSubtitleText" Margin="0,2,0,8" Foreground="#6B6553" TextWrapping="Wrap" />
+                            <!-- Shown instead of the notes while the folder has no Markdown files -->
+                            <TextBlock x:Name="PostItBoardEmptyHint" Margin="0,12" Foreground="#6B6553" TextWrapping="Wrap" Visibility="Collapsed" />
+                            <!-- The notes themselves, flowing left to right and wrapping onto new rows -->
+                            <WrapPanel x:Name="PostItNotesPanel" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </DockPanel>
         </Grid>
     </DockPanel>
 </Window>

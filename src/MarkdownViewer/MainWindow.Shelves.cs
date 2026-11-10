@@ -67,6 +67,8 @@ public partial class MainWindow
         RefreshBookshelfList();
         UpdateShelfEditingControls();
         WatchCurrentShelfFolder();
+        // A post-it board shows its notes in the document area; any other shelf shows the open document.
+        ShowOrHidePostItBoardForCurrentShelf();
         UpdatePropertiesPanel();
     }
 
@@ -144,6 +146,12 @@ public partial class MainWindow
             else if (shelfMenuItem.Tag is OpenShelfFolderMenuTag)
             {
                 shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+            }
+            else if (shelfMenuItem.Tag is ShowAsPostItBoardMenuTag)
+            {
+                // Any folder shelf can be switched between a plain list and a post-it board.
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+                shelfMenuItem.IsChecked = currentBookshelf.IsFolderShelf && currentBookshelf.IsPostItBoard;
             }
         }
 

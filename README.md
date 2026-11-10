@@ -34,6 +34,11 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   in it (`.md`, `.markdown`, ...), optionally including subfolders (⋯ → *Include subfolders*). Files that are added,
   removed or renamed in the folder appear and disappear by themselves. The list is sorted by name; files cannot be
   added or removed by hand there, but right-click → *Add to bookshelf* copies them to a normal shelf.
+- **Post-it boards** (⋯ → *New post-it board...*): a folder bookshelf whose Markdown files are shown as small yellow
+  post-it notes in the document area, one note per file. A note whose text fits is read right on the board; a note
+  that does not fit says *Click to read more* and opens as a normal document when clicked (double-click opens any
+  note). *← Back to the post-it board* above the document returns to the notes. Notes update by themselves when files
+  are added, removed or saved. Any folder bookshelf can be switched with ⋯ → *Show as post-it board*.
 - **Query bookshelves** (⋯ → *New query bookshelf...*): a shelf of saved **Microsoft SQL Server** queries instead of files.
   Click **New...** to open a query's settings page (used instead of the editor): name, server, database, Windows login
   or SQL Server login, the SQL, and what it returns:

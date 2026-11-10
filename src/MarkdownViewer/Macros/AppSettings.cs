@@ -155,6 +155,11 @@ public class AppSettings
             {
                 bookshelf.IsQueryShelf = false;
             }
+            // Only a folder shelf can be shown as a post-it board.
+            if (!bookshelf.IsFolderShelf)
+            {
+                bookshelf.IsPostItBoard = false;
+            }
             // Query shelves hold only queries, other shelves only files.
             bookshelf.Entries.RemoveAll(bookshelfEntry => bookshelfEntry.IsQuery != bookshelf.IsQueryShelf);
             if (bookshelf.IsQueryShelf)

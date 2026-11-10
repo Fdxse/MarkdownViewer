@@ -81,7 +81,10 @@ public partial class MainWindow
             {
                 IncludeSubdirectories = currentBookshelf.IncludeSubfolders,
                 // File and folder names: covers files added, deleted and renamed, and folders renamed or moved.
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+                // A post-it board shows the files' text too, so it also listens for files being saved.
+                NotifyFilter = currentBookshelf.IsPostItBoard
+                    ? NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite
+                    : NotifyFilters.FileName | NotifyFilters.DirectoryName,
             };
 
             // Watcher events arrive on a background thread; restart the wait timer on the UI thread.
@@ -97,6 +100,8 @@ public partial class MainWindow
             shelfFolderWatcher.Created += OnFolderChanged;
             shelfFolderWatcher.Deleted += OnFolderChanged;
             shelfFolderWatcher.Renamed += OnFolderChanged;
+            // Only raised for a post-it board (LastWrite is not watched otherwise): a file was saved.
+            shelfFolderWatcher.Changed += OnFolderChanged;
             // Too many changes at once (the watcher's buffer overflowed): simply re-read the whole folder.
             shelfFolderWatcher.Error += OnFolderChanged;
             shelfFolderWatcher.EnableRaisingEvents = true;
@@ -128,6 +133,8 @@ public partial class MainWindow
         {
             ShowBookshelfEntries();
         }
+        // The notes on a post-it board are redrawn if a file came, went or was saved.
+        RefreshPostItBoardIfChanged();
         UpdatePropertiesPanel();
     }
 
@@ -150,7 +157,8 @@ public partial class MainWindow
 
         // The drop-down's tooltip says which folder a folder shelf shows.
         ShelfChooser.ToolTip = currentBookshelf.IsFolderShelf
-            ? $"Shows the Markdown files in {currentBookshelf.FolderPath}" + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
+            ? (currentBookshelf.IsPostItBoard ? "Post-it board: " : string.Empty)
+                + $"Shows the Markdown files in {currentBookshelf.FolderPath}" + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
             : currentBookshelf.IsQueryShelf ? "A bookshelf of saved SQL Server queries" : "Choose a bookshelf";
     }
 
@@ -179,9 +187,21 @@ public partial class MainWindow
     /// <summary>Shelf menu → New folder bookshelf: picks a folder, asks about subfolders and a name, and shows the new shelf.</summary>
     private void NewFolderShelfMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
+        CreateFolderShelf(asPostItBoard: false);
+    }
+
+    /// <summary>
+    /// Creates a folder shelf: picks a folder, asks about subfolders and a name, and shows the new shelf.
+    /// With <paramref name="asPostItBoard"/> the shelf shows its files as yellow post-it notes.
+    /// </summary>
+    private void CreateFolderShelf(bool asPostItBoard)
+    {
+        string shelfKindText = asPostItBoard ? "post-it board" : "folder bookshelf";
         var folderDialog = new OpenFolderDialog
         {
-            Title = "Choose the folder whose Markdown files this bookshelf shows",
+            Title = asPostItBoard
+                ? "Choose the folder whose Markdown files are shown as post-it notes"
+                : "Choose the folder whose Markdown files this bookshelf shows",
             InitialDirectory = currentFilePath != null ? Path.GetDirectoryName(currentFilePath) : null,
         };
         if (folderDialog.ShowDialog(this) != true)
@@ -192,7 +212,7 @@ public partial class MainWindow
 
         var subfolderAnswer = MessageBox.Show(this,
             $"Also show the Markdown files in the subfolders of\n{chosenFolderPath}?\n\n(You can change this later in the ⋯ menu.)",
-            "New folder bookshelf", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+            $"New {shelfKindText}", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (subfolderAnswer == MessageBoxResult.Cancel)
         {
             return;
@@ -200,8 +220,8 @@ public partial class MainWindow
 
         // Suggest the folder's own name, e.g. "Documentation" for C:\Projects\Documentation.
         string suggestedName = Path.GetFileName(Path.TrimEndingDirectorySeparator(chosenFolderPath));
-        string? newShelfName = AskForShelfName("New folder bookshelf",
-            $"Name of the bookshelf that shows the Markdown files in\n{chosenFolderPath}:", suggestedName, shelfBeingRenamed: null);
+        string? newShelfName = AskForShelfName($"New {shelfKindText}",
+            $"Name of the {shelfKindText} that shows the Markdown files in\n{chosenFolderPath}:", suggestedName, shelfBeingRenamed: null);
         if (newShelfName == null)
         {
             return;
@@ -212,6 +232,7 @@ public partial class MainWindow
             Name = newShelfName,
             FolderPath = chosenFolderPath,
             IncludeSubfolders = subfolderAnswer == MessageBoxResult.Yes,
+            IsPostItBoard = asPostItBoard,
         };
         appSettings.Bookshelves.Add(newShelf);
         SaveSettingsOrWarn();

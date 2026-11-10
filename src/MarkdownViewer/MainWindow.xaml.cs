@@ -170,6 +170,8 @@ public partial class MainWindow : Window
         RenderPreview(keepScrollPosition: false);
         UpdateTitleAndStatus();
         SelectOpenFileInBookshelf();
+        // A document that is opened (from a note, the list, a link or a search) replaces the post-it board on screen.
+        HidePostItBoard();
     }
 
     /// <summary>Shows the built-in welcome page (embedded in the exe) as an untitled document.</summary>
@@ -548,6 +550,8 @@ public partial class MainWindow : Window
 
         if (enableEditing)
         {
+            // The editor sits under the post-it board, so leave the board to edit the open document.
+            HidePostItBoard();
             MarkdownEditor.Focus();
         }
         else

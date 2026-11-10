@@ -341,9 +341,10 @@ public partial class MainWindow
             return;
         }
 
-        // Clicking the file that is already open does nothing.
+        // Clicking the file that is already open does not read it again; on a post-it board it just brings the document back into view.
         if (currentFilePath != null && bookshelfEntry.HasPath(currentFilePath))
         {
+            HidePostItBoard();
             return;
         }
 
