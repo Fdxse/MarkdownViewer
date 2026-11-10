@@ -12,6 +12,8 @@ namespace MarkdownViewer.Bookshelf;
 /// (optionally with its subfolders). Its <see cref="Entries"/> are read from disk, never edited by hand;</item>
 /// <item>a query shelf (<see cref="IsQueryShelf"/>), whose entries are saved SQL Server queries. Opening one runs
 /// the query and shows the result as a Markdown document.</item>
+/// <item>a post-it board (<see cref="IsPostItBoard"/>), which is a folder shelf whose files are also shown as
+/// small yellow notes in the document area instead of one document at a time.</item>
 /// </list>
 /// The same file may be on several shelves.
 /// </summary>
@@ -49,6 +51,14 @@ public class NamedBookshelf
     // Left out of the settings file for the other kinds of shelf.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsQueryShelf { get; set; }
+
+    /// <summary>
+    /// For a folder shelf: true to show its files as a board of yellow post-it notes in the document area.
+    /// Only meaningful together with <see cref="FolderPath"/>.
+    /// </summary>
+    // Left out of the settings file for the other kinds of shelf.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsPostItBoard { get; set; }
 
     /// <summary>True if this shelf lists a folder instead of files the user added.</summary>
     [JsonIgnore]
@@ -164,8 +174,16 @@ public class NamedBookshelf
         Name = Name,
         FolderPath = FolderPath,
         IncludeSubfolders = IncludeSubfolders,
+        IsPostItBoard = IsPostItBoard,
     };
 
-    /// <summary>The shelf name, which is what the drop-down shows (folder shelves are marked as such).</summary>
-    public override string ToString() => IsFolderShelf ? $"{Name} (folder)" : IsQueryShelf ? $"{Name} (queries)" : Name;
+    /// <summary>The shelf name, which is what the drop-down shows (folder, post-it and query shelves are marked as such).</summary>
+    public override string ToString()
+    {
+        if (IsFolderShelf)
+        {
+            return IsPostItBoard ? $"{Name} (post-its)" : $"{Name} (folder)";
+        }
+        return IsQueryShelf ? $"{Name} (queries)" : Name;
+    }
 }
