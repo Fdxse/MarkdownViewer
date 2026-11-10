@@ -48,4 +48,11 @@ public static class AppCommands
         nameof(AddTodoTask),
         typeof(AppCommands),
         new InputGestureCollection { new KeyGesture(Key.T, ModifierKeys.Control | ModifierKeys.Shift) });
+
+    /// <summary>Opens the global search window that searches every bookshelf, the todo list and saved queries (Ctrl+Shift+F).</summary>
+    public static readonly RoutedUICommand GlobalSearch = new(
+        "Search all documents",
+        nameof(GlobalSearch),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.F, ModifierKeys.Control | ModifierKeys.Shift) });
 }
