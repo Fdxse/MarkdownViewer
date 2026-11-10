@@ -39,6 +39,8 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   that does not fit says *Click to read more* and opens as a normal document when clicked (double-click opens any
   note). *← Back to the post-it board* above the document returns to the notes. Notes update by themselves when files
   are added, removed or saved. Any folder bookshelf can be switched with ⋯ → *Show as post-it board*.
+  **Ctrl+N** on a board asks for a name and creates a new note (`<name>.md`) in the board's folder, opened for
+  editing, so Ctrl+S saves it straight there.
 - **Query bookshelves** (⋯ → *New query bookshelf...*): a shelf of saved **Microsoft SQL Server** queries instead of files.
   Click **New...** to open a query's settings page (used instead of the editor): name, server, database, Windows login
   or SQL Server login, the SQL, and what it returns:
