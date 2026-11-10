@@ -739,6 +739,14 @@ public partial class MainWindow : Window
         {
             return;
         }
+
+        // On a post-it board the new document becomes a new note: a file in the board's folder, so it is saved there.
+        if (currentBookshelf.IsPostItBoard)
+        {
+            CreateNewPostItNote();
+            return;
+        }
+
         SetDocumentText(string.Empty, filePath: null);
         SetEditMode(true);
     }

@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using MarkdownViewer.Bookshelf;
 using MarkdownViewer.Rendering;
+using MarkdownViewer.Todo;
 
 namespace MarkdownViewer;
 
@@ -230,7 +231,8 @@ public partial class MainWindow
         string cutShortText = fileCount > MaximumPostItNoteCount ? $" (only the first {MaximumPostItNoteCount} are shown)" : string.Empty;
         PostItBoardSubtitleText.Text =
             $"{noteCountText} from {currentBookshelf.FolderPath}{subfolderText}{cutShortText}. " +
-            "Click a note marked \"Click to read more\" to open it as a document; double-click any note to open it.";
+            "Click a note marked \"Click to read more\" to open it as a document; double-click any note to open it. " +
+            "Ctrl+N adds a new note to this folder.";
 
         // No files: say why (an empty folder, or a folder that is gone).
         PostItBoardEmptyHint.Visibility = fileCount == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -496,6 +498,97 @@ public partial class MainWindow
         {
             SetEditMode(true);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // New notes
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// File → New (Ctrl+N) while a post-it board is shown: asks for a name, creates an empty .md file in the
+    /// board's folder right away, and opens it in edit mode. Because the file already exists, Ctrl+S saves
+    /// straight into the board's folder without a Save As dialog, and the note appears on the board.
+    /// The caller has already asked about unsaved changes in the open document.
+    /// </summary>
+    private void CreateNewPostItNote()
+    {
+        string boardFolderPath = currentBookshelf.FolderPath!;
+        if (!Directory.Exists(boardFolderPath))
+        {
+            MessageBox.Show(this,
+                $"The folder of this post-it board was not found, so the note cannot be saved there:\n{boardFolderPath}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Suggest a name based on the current time, so just pressing Enter always works.
+        string suggestedNoteName = $"Note {DateTime.Now:yyyy-MM-dd HHmm}";
+        var namePrompt = new TextPromptWindow("New post-it note",
+            $"Name of the new note (saved as a .md file in {boardFolderPath}):", suggestedNoteName) { Owner = this };
+        if (namePrompt.ShowDialog() != true)
+        {
+            return;
+        }
+
+        string noteFileName = MakeSafeNoteFileName(namePrompt.AnswerText, suggestedNoteName);
+        string newNoteFilePath = GetUnusedFilePath(boardFolderPath, noteFileName, ".md");
+        try
+        {
+            // An empty file: the user types the content in the editor that opens next.
+            File.WriteAllText(newNoteFilePath, string.Empty);
+        }
+        catch (Exception writeError)
+        {
+            MessageBox.Show(this, $"Could not create the note:\n{newNoteFilePath}\n\n{writeError.Message}",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        // Put the new file on the shelf at once (the folder watcher would do it too, a moment later).
+        RefreshFolderShelfAfterChange();
+        LoadFile(newNoteFilePath);
+        // Only start editing if the new note really opened (LoadFile has already shown any error).
+        if (currentFilePath != null && string.Equals(currentFilePath, Path.GetFullPath(newNoteFilePath), StringComparison.OrdinalIgnoreCase))
+        {
+            SetEditMode(true);
+        }
+    }
+
+    /// <summary>
+    /// Turns what the user typed into a usable file name: characters Windows does not allow are replaced
+    /// with "-", a typed ".md" is dropped (it is added again later), and an empty name falls back to the suggestion.
+    /// </summary>
+    private static string MakeSafeNoteFileName(string typedName, string fallbackName)
+    {
+        string trimmedName = typedName.Trim();
+        if (trimmedName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmedName = trimmedName[..^3].TrimEnd();
+        }
+
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        string safeName = new string(trimmedName
+            .Select(nameCharacter => invalidCharacters.Contains(nameCharacter) ? '-' : nameCharacter)
+            .ToArray())
+            // Windows does not allow a name to end with a dot or space.
+            .TrimEnd('.', ' ');
+        return safeName.Length == 0 ? fallbackName : safeName;
+    }
+
+    /// <summary>
+    /// A path in the folder for "name.ext" that no file uses yet: "name.ext", else "name (2).ext", "name (3).ext"...
+    /// so creating a note never overwrites an existing one.
+    /// </summary>
+    private static string GetUnusedFilePath(string folderPath, string baseFileName, string fileExtension)
+    {
+        string candidatePath = Path.Combine(folderPath, baseFileName + fileExtension);
+        int copyNumber = 2;
+        while (File.Exists(candidatePath))
+        {
+            candidatePath = Path.Combine(folderPath, $"{baseFileName} ({copyNumber}){fileExtension}");
+            copyNumber++;
+        }
+        return candidatePath;
     }
 
     /// <summary>Makes a frozen (thread-safe, faster) brush from a "#RRGGBB" colour.</summary>
