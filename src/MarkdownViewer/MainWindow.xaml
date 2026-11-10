@@ -27,6 +27,7 @@
         <CommandBinding Command="local:AppCommands.AddToBookshelf" Executed="AddToBookshelfCommand_Executed" CanExecute="AddToBookshelfCommand_CanExecute" />
         <CommandBinding Command="local:AppCommands.OpenTodoList" Executed="OpenTodoListCommand_Executed" />
         <CommandBinding Command="local:AppCommands.AddTodoTask" Executed="AddTodoTaskCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.GlobalSearch" Executed="GlobalSearchCommand_Executed" />
     </Window.CommandBindings>
 
     <!-- Ctrl+Shift+S is not a built-in gesture for Save As, so it is added here. -->
@@ -63,6 +64,14 @@
                 <MenuItem Header="_Reset zoom" Click="ResetZoomMenuItem_Click" />
                 <Separator />
                 <MenuItem Header="_Find..." Command="ApplicationCommands.Find" CommandTarget="{Binding ElementName=DocumentReader}" />
+            </MenuItem>
+            <!-- Global search over every bookshelf, the todo list and saved queries, using search-index.json next to the exe -->
+            <MenuItem Header="_Search">
+                <MenuItem Header="_Search all documents..." Command="local:AppCommands.GlobalSearch" InputGestureText="Ctrl+Shift+F" />
+                <MenuItem Header="_Find in this document..." Command="ApplicationCommands.Find" CommandTarget="{Binding ElementName=DocumentReader}" />
+                <Separator />
+                <MenuItem Header="_Refresh search index" Click="RefreshSearchIndexMenuItem_Click"
+                          ToolTip="Read every document again and rewrite search-index.json next to the exe" />
             </MenuItem>
             <MenuItem Header="_Tools">
                 <!-- Text macros such as "@730" that expand while typing in the editor -->

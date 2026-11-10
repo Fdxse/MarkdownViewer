@@ -63,6 +63,21 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   (default `## Todo`; matched by heading text, added at the end of the file if missing). If the section already has
   tasks, the new one goes directly above the first of them, so text you put between the heading and the list stays put.
   Nothing else in the file is touched. Macros (e.g. `@730`) expand in the task text too. **Ctrl+T** opens the list. Zip all includes `todo.md` too.
+- **Global search** (Search → *Search all documents*, **Ctrl+Shift+F**): searches every file on every bookshelf
+  (folder bookshelves included), `todo.md` and every saved query at once. Results appear as you type, one row per
+  document with its bookshelf, folder and up to three matching lines (with line numbers and the words highlighted).
+  All words must occur, in any order, ignoring upper/lower case, and a word also finds longer words that contain it
+  (`ord` finds *orders*). Put text in `"quotes"` for an exact phrase. **Enter** or a double-click opens the document
+  and selects the first hit; the search window stays open so you can go through several results.
+  The search uses a lookup file, `search-index.json`, next to the exe (or in `%APPDATA%\MarkdownViewer` if that
+  folder is read-only). It stores each document's **different words once each**, not the full text; the matching
+  lines are read from the files when shown. At startup and every time the search window opens, only files whose
+  modified time or size changed are read again, and saving in the app updates the file at once. **Refresh index**
+  (in the search window, or Search → *Refresh search index*) reads everything again. For a query the index holds its
+  name, SQL, server and database, plus the words of its result from the last time you opened it: searching never
+  runs queries, so a query you have not opened since can only be found by its name and SQL. The file can be deleted
+  at any time; it is rebuilt at the next start. It is not part of Zip all.
+- The **version number** (e.g. *v1.0.42*) is shown in the title bar.
 - **Sort sections**: right-click a heading in the viewer → *Sort the N "###" sections under "Parent"*. It sorts that
   heading and its siblings (same level, same parent); each section's text and subsections move with it. Flavours:
   alphabetical A→Z / Z→A (natural numbers: 2 before 10), date in heading newest/oldest first (2026-11-07, 07/11/2026,

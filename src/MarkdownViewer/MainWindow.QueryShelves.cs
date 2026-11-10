@@ -176,7 +176,10 @@ public partial class MainWindow
             }
 
             currentQueryRunResult = runResult;
-            ShowQueryDocument(queryEntry, QueryMarkdownBuilder.Build(savedQuery, runResult));
+            string resultMarkdown = QueryMarkdownBuilder.Build(savedQuery, runResult);
+            ShowQueryDocument(queryEntry, resultMarkdown);
+            // Store the words of the result, so global search can find this query by its result without running it.
+            RecordQueryResultInSearchIndex(queryEntry, resultMarkdown, runResult.RanAt);
         }
         catch (Exception) when (thisRunCancellation.IsCancellationRequested)
         {

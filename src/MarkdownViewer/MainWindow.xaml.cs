@@ -103,6 +103,9 @@ public partial class MainWindow : Window
         // Show the bookshelf panel as it was when the app was last closed.
         InitializeBookshelf();
 
+        // Global search: loads search-index.json next to the exe and checks it for changed files, in the background.
+        InitializeGlobalSearch();
+
         if (!string.IsNullOrWhiteSpace(fileToOpen) && File.Exists(fileToOpen))
         {
             LoadFile(fileToOpen);
@@ -125,7 +128,8 @@ public partial class MainWindow : Window
     {
         string documentName = currentFilePath != null ? Path.GetFileName(currentFilePath) : currentQueryEntry?.Query?.Name ?? "Untitled";
         string unsavedMarker = HasUnsavedChanges ? "*" : string.Empty;
-        Title = $"{documentName}{unsavedMarker} - Markdown Viewer";
+        // The version number shows which release is running.
+        Title = $"{documentName}{unsavedMarker} - Markdown Viewer {AppVersionText}";
 
         // A query result has no file; the status bar says where it came from instead.
         FilePathStatusText.Text = currentFilePath
@@ -388,6 +392,8 @@ public partial class MainWindow : Window
             UpdateTitleAndStatus();
             // New size and modified date of the saved file.
             UpdatePropertiesPanel();
+            // Global search should find the new text straight away.
+            UpdateSavedFileInSearchIndex(filePath);
             return true;
         }
         catch (Exception writeError)
