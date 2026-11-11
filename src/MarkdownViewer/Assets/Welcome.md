@@ -49,6 +49,9 @@ flowchart LR
 The file is watched while open: if another program changes it, the view refreshes automatically
 (as long as you have no unsaved edits).
 
+**Journal:** press **Ctrl+J**, write a note and press Ctrl+Enter. It is stamped with the date and time and put at
+the top of `journal.md`; **Ctrl+Shift+J** opens the journal.
+
 **Macros:** in the editor, type `@730` followed by a space and it becomes a link to task 730.
 Change or add macros under **Tools → Macros**.
 

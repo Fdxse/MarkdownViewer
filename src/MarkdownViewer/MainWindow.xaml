@@ -27,6 +27,8 @@
         <CommandBinding Command="local:AppCommands.AddToBookshelf" Executed="AddToBookshelfCommand_Executed" CanExecute="AddToBookshelfCommand_CanExecute" />
         <CommandBinding Command="local:AppCommands.OpenTodoList" Executed="OpenTodoListCommand_Executed" />
         <CommandBinding Command="local:AppCommands.AddTodoTask" Executed="AddTodoTaskCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.AddJournalEntry" Executed="AddJournalEntryCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.OpenJournal" Executed="OpenJournalCommand_Executed" />
         <CommandBinding Command="local:AppCommands.GlobalSearch" Executed="GlobalSearchCommand_Executed" />
     </Window.CommandBindings>
 
@@ -90,6 +92,11 @@
                 <MenuItem Header="_Section for new tasks..." Click="TodoSectionMenuItem_Click" />
                 <MenuItem Header="Archive _done tasks" Click="ArchiveDoneTasksMenuItem_Click"
                           ToolTip="Move the ticked tasks of todo.md (with their sub-tasks) to Archive\todo-archive.md" />
+            </MenuItem>
+            <!-- The journal: a plain journal.md next to the exe. New entries get a "### date time" heading and go on top. -->
+            <MenuItem Header="_Journal">
+                <MenuItem Header="_New entry..." Command="local:AppCommands.AddJournalEntry" InputGestureText="Ctrl+J" />
+                <MenuItem Header="_Open journal" Command="local:AppCommands.OpenJournal" InputGestureText="Ctrl+Shift+J" />
             </MenuItem>
             <!-- Saved links that open in the default browser. Filled from the settings in code (RebuildLinksMenu). -->
             <MenuItem x:Name="LinksMenu" Header="_Links" />
