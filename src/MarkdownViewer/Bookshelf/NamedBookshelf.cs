@@ -60,6 +60,15 @@ public class NamedBookshelf
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsPostItBoard { get; set; }
 
+    /// <summary>
+    /// For a post-it board: the order the user dragged the notes into, as the files' display names
+    /// ("notes.md", or "subfolder\notes.md"). Files not in this list (e.g. new ones) come after the
+    /// listed ones, sorted by name. Null or empty means plain A-Z order.
+    /// </summary>
+    // Left out of the settings file until the user rearranges a board.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string>? PostItNoteOrder { get; set; }
+
     /// <summary>True if this shelf lists a folder instead of files the user added.</summary>
     [JsonIgnore]
     public bool IsFolderShelf => !string.IsNullOrWhiteSpace(FolderPath);
@@ -165,7 +174,34 @@ public class NamedBookshelf
 
         Entries.Sort((firstEntry, secondEntry) =>
             StringComparer.CurrentCultureIgnoreCase.Compare(firstEntry.DisplayName, secondEntry.DisplayName));
+        ApplyPostItNoteOrder();
         return true;
+    }
+
+    /// <summary>
+    /// For a post-it board with a saved <see cref="PostItNoteOrder"/>: puts <see cref="Entries"/> in that order.
+    /// Files that are not in the saved order keep their A-Z order and go after the ones that are.
+    /// </summary>
+    public void ApplyPostItNoteOrder()
+    {
+        if (!IsPostItBoard || PostItNoteOrder == null || PostItNoteOrder.Count == 0)
+        {
+            return;
+        }
+
+        // Position of each name in the saved order (the first one wins if a name is somehow listed twice).
+        var savedPositionByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int savedPosition = 0; savedPosition < PostItNoteOrder.Count; savedPosition++)
+        {
+            savedPositionByName.TryAdd(PostItNoteOrder[savedPosition], savedPosition);
+        }
+
+        // OrderBy keeps the existing (A-Z) order among files with the same key, i.e. among the unlisted ones at the end.
+        Entries = Entries
+            .OrderBy(bookshelfEntry => savedPositionByName.TryGetValue(bookshelfEntry.DisplayName, out int savedPosition)
+                ? savedPosition
+                : int.MaxValue)
+            .ToList();
     }
 
     /// <summary>A copy of this shelf without its files, used when saving a folder shelf (its files are read from disk instead).</summary>
@@ -175,6 +211,7 @@ public class NamedBookshelf
         FolderPath = FolderPath,
         IncludeSubfolders = IncludeSubfolders,
         IsPostItBoard = IsPostItBoard,
+        PostItNoteOrder = PostItNoteOrder,
     };
 
     /// <summary>The shelf name, which is what the drop-down shows (folder, post-it and query shelves are marked as such).</summary>

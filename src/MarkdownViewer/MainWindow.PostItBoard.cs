@@ -183,7 +183,9 @@ public partial class MainWindow
     /// </summary>
     private void RefreshPostItBoardIfChanged()
     {
-        if (!isPostItBoardShown || !currentBookshelf.IsPostItBoard)
+        // While a note is being dragged the board is left alone (redrawing would pull the note away from the mouse);
+        // it is brought up to date when the note is dropped.
+        if (!isPostItBoardShown || !currentBookshelf.IsPostItBoard || isPostItNoteBeingDragged)
         {
             return;
         }
@@ -198,10 +200,13 @@ public partial class MainWindow
         RebuildPostItNotes();
     }
 
-    /// <summary>One line per file on the board with its path and last save time, used to notice changes.</summary>
+    /// <summary>
+    /// One line per file on the board with its path and last save time, used to notice changes. The lines
+    /// are sorted, so moving a note around on the board does not count as a change (and does not redraw it).
+    /// </summary>
     private string BuildPostItBoardSignature()
     {
-        var signatureBuilder = new StringBuilder();
+        var signatureLines = new List<string>();
         foreach (var bookshelfEntry in currentBookshelf.Entries.Take(MaximumPostItNoteCount))
         {
             long lastSavedTicks;
@@ -214,9 +219,10 @@ public partial class MainWindow
                 // A file that cannot be inspected is drawn as an error note; it still takes part in the signature.
                 lastSavedTicks = 0;
             }
-            signatureBuilder.Append(bookshelfEntry.FilePath).Append('|').Append(lastSavedTicks).Append('\n');
+            signatureLines.Add($"{bookshelfEntry.FilePath}|{lastSavedTicks}");
         }
-        return signatureBuilder.ToString();
+        signatureLines.Sort(StringComparer.OrdinalIgnoreCase);
+        return string.Join('\n', signatureLines);
     }
 
     /// <summary>Clears the board and draws one note per Markdown file of the shown shelf, plus the board's title.</summary>
@@ -232,7 +238,7 @@ public partial class MainWindow
         PostItBoardSubtitleText.Text =
             $"{noteCountText} from {currentBookshelf.FolderPath}{subfolderText}{cutShortText}. " +
             "Click a note marked \"Click to read more\" to open it as a document; double-click any note to open it. " +
-            "Ctrl+N adds a new note to this folder.";
+            "Drag a note to move it. Ctrl+N adds a new note to this folder.";
 
         // No files: say why (an empty folder, or a folder that is gone).
         PostItBoardEmptyHint.Visibility = fileCount == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -374,6 +380,8 @@ public partial class MainWindow
         };
         postItNote.MouseLeftButtonUp += PostItNote_MouseLeftButtonUp;
         postItNote.MouseLeftButtonDown += PostItNote_MouseLeftButtonDown;
+        // Dragging a note moves it to another place on the board (MainWindow.PostItBoardOrder.cs).
+        postItNote.MouseMove += PostItNote_MouseMove;
         postItNote.ContextMenu = CreatePostItNoteContextMenu(bookshelfEntry);
 
         // Find out whether the text fits once the viewer has laid it out. The scroll viewer inside reports a
@@ -441,6 +449,8 @@ public partial class MainWindow
         noteContextMenu.Items.Add(editMenuItem);
         noteContextMenu.Items.Add(new Separator());
         noteContextMenu.Items.Add(showInFolderMenuItem);
+        noteContextMenu.Items.Add(new Separator());
+        noteContextMenu.Items.Add(CreateSortPostItNotesByNameMenuItem());
         return noteContextMenu;
     }
 
@@ -448,9 +458,13 @@ public partial class MainWindow
     // Clicking a note
     // ------------------------------------------------------------------
 
-    /// <summary>A double-click opens any note as a document, also one whose text fits.</summary>
+    /// <summary>
+    /// A double-click opens any note as a document, also one whose text fits. A single press is remembered,
+    /// because moving the mouse with the button held down starts dragging the note.
+    /// </summary>
     private void PostItNote_MouseLeftButtonDown(object sender, MouseButtonEventArgs mouseDetails)
     {
+        RememberPostItNotePressed(sender, mouseDetails);
         if (mouseDetails.ClickCount == 2 && sender is Border { Tag: PostItNoteState noteState })
         {
             mouseDetails.Handled = true;
@@ -461,6 +475,8 @@ public partial class MainWindow
     /// <summary>A single click opens a note as a document only if its text does not fit on the note.</summary>
     private void PostItNote_MouseLeftButtonUp(object sender, MouseButtonEventArgs mouseDetails)
     {
+        // The button was let go without dragging: the press no longer counts as the start of a drag.
+        postItNotePressedForDrag = null;
         if (sender is Border { Tag: PostItNoteState noteState } && noteState.IsOverflowing)
         {
             mouseDetails.Handled = true;

@@ -317,6 +317,9 @@
                     <!-- The post-it board: one yellow note per Markdown file in the board's folder. Filled in code (MainWindow.PostItBoard.cs). -->
                     <ScrollViewer x:Name="PostItBoardView"
                                   Visibility="Collapsed"
+                                  AllowDrop="True"
+                                  DragOver="PostItBoardView_DragOver"
+                                  Drop="PostItBoardView_Drop"
                                   Background="#ECE5D3"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
