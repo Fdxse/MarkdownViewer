@@ -66,6 +66,15 @@ public class AppSettings
     /// </summary>
     public string TodoSectionHeading { get; set; } = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
 
+    /// <summary>Number of days an item stays in the app's Trash before it is moved on to the Windows Recycle Bin. 0 keeps items forever.</summary>
+    public const int DefaultTrashKeepDays = 30;
+
+    /// <summary>
+    /// How many days things stay in the app's Trash (next to the exe) before they are moved to the Windows Recycle Bin
+    /// at startup. 0 (or less) keeps them in the Trash until it is emptied by hand.
+    /// </summary>
+    public int TrashKeepDays { get; set; } = DefaultTrashKeepDays;
+
     /// <summary>Settings used the first time the app runs: one example macro for work item links.</summary>
     public static AppSettings CreateDefaults() => new()
     {
@@ -206,8 +215,10 @@ public class AppSettings
     public string ToJson()
     {
         // Folder shelves are saved without their files: those are read from the folder each time.
+        // The Archive shelf is added by the app at every start, so it is not saved at all.
         var settingsToWrite = (AppSettings)MemberwiseClone();
         settingsToWrite.Bookshelves = Bookshelves
+            .Where(bookshelf => !bookshelf.IsBuiltInShelf)
             .Select(bookshelf => bookshelf.IsFolderShelf ? bookshelf.CloneWithoutEntries() : bookshelf)
             .ToList();
         return JsonSerializer.Serialize(settingsToWrite, JsonOptions);

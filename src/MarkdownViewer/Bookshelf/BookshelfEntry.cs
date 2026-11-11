@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text.Json.Serialization;
 using MarkdownViewer.Queries;
+using MarkdownViewer.Trash;
 
 namespace MarkdownViewer.Bookshelf;
 
@@ -29,6 +30,17 @@ public class BookshelfEntry
     [JsonIgnore]
     public bool IsQuery => Query != null;
 
+    /// <summary>
+    /// Set for the entries of the Trash list only: the trashed item the entry stands for. A trashed file's
+    /// <see cref="FilePath"/> is where the file is now, inside the Trash folder. Never stored in the settings file.
+    /// </summary>
+    [JsonIgnore]
+    public TrashItem? TrashItem { get; set; }
+
+    /// <summary>True if the entry has no file on disk: a saved query, or a trashed query or bookshelf.</summary>
+    [JsonIgnore]
+    public bool HasNoFile => IsQuery || (TrashItem != null && TrashItem.Kind != TrashItemKind.File);
+
     /// <summary>Makes a bookshelf entry for a query, with a new unique id.</summary>
     public static BookshelfEntry CreateForQuery(SavedQuery savedQuery) => new()
     {
@@ -39,7 +51,9 @@ public class BookshelfEntry
 
     /// <summary>Tooltip in the list: the full path of a file, or the server and database of a query.</summary>
     [JsonIgnore]
-    public string ToolTipText => Query == null
+    public string ToolTipText => TrashItem != null
+        ? TrashItem.DescriptionText
+        : Query == null
         ? FilePath
         : string.IsNullOrWhiteSpace(Query.DatabaseName) ? $"SQL Server query on {Query.ServerName}" : $"SQL Server query on {Query.ServerName} / {Query.DatabaseName}";
 
@@ -48,7 +62,7 @@ public class BookshelfEntry
 
     /// <summary>File name shown in the list, e.g. "README.md".</summary>
     [JsonIgnore]
-    public string FileName => Query?.Name ?? Path.GetFileName(FilePath);
+    public string FileName => TrashItem?.DisplayName ?? Query?.Name ?? Path.GetFileName(FilePath);
 
     /// <summary>
     /// Text shown in the list. Normally the file name; on a folder shelf with subfolders it includes the
@@ -66,7 +80,7 @@ public class BookshelfEntry
 
     /// <summary>Folder that holds the file, shown in grey under the file name.</summary>
     [JsonIgnore]
-    public string FolderPath => IsQuery ? string.Empty : Path.GetDirectoryName(FilePath) ?? string.Empty;
+    public string FolderPath => HasNoFile ? string.Empty : Path.GetDirectoryName(FilePath) ?? string.Empty;
 
     /// <summary>
     /// False if the file has been moved or deleted (or its drive is not connected).
@@ -78,13 +92,13 @@ public class BookshelfEntry
     /// <summary>Re-checks whether the file still exists.</summary>
     public void RefreshFileExists()
     {
-        // A query has no file, so it is never "missing".
-        FileExists = IsQuery || File.Exists(FilePath);
+        // A query (or a trashed query or bookshelf) has no file, so it is never "missing".
+        FileExists = HasNoFile || File.Exists(FilePath);
     }
 
     /// <summary>True if the file appeared or disappeared since <see cref="RefreshFileExists"/> last looked (never for a query).</summary>
     [JsonIgnore]
-    public bool HasFileExistenceChanged => !IsQuery && FileExists != File.Exists(FilePath);
+    public bool HasFileExistenceChanged => !HasNoFile && FileExists != File.Exists(FilePath);
 
     /// <summary>True if this entry points at the given path (Windows paths are not case-sensitive).</summary>
     public bool HasPath(string otherFilePath)

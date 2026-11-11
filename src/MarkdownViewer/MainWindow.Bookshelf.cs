@@ -97,8 +97,12 @@ public partial class MainWindow
     /// </summary>
     private void RefreshBookshelfList()
     {
-        // A folder shelf's files are read from its folder.
+        // A folder shelf's files are read from its folder, and the Trash's from the Trash folder.
         RescanCurrentFolderShelf();
+        if (currentBookshelf.IsTrashShelf)
+        {
+            ReloadTrashShelf();
+        }
 
         foreach (var bookshelfEntry in currentBookshelf.Entries)
         {
@@ -173,10 +177,27 @@ public partial class MainWindow
         return addedFileCount;
     }
 
-    /// <summary>Takes files off the bookshelf. The files on disk are not touched.</summary>
+    /// <summary>
+    /// Takes files off the bookshelf. The files on disk are not touched. On a query shelf the queries go to the trash
+    /// (they exist nowhere else), and in the Trash "remove" means delete for good (after asking).
+    /// </summary>
     private void RemoveFromBookshelf(IReadOnlyCollection<BookshelfEntry> entriesToRemove)
     {
-        if (entriesToRemove.Count == 0 || RejectChangeToFolderShelf() || !ConfirmQueryRemoval(entriesToRemove))
+        if (entriesToRemove.Count == 0)
+        {
+            return;
+        }
+        if (currentBookshelf.IsTrashShelf)
+        {
+            DeleteTrashEntriesForGood(entriesToRemove);
+            return;
+        }
+        if (currentBookshelf.IsQueryShelf)
+        {
+            MoveEntriesToTrash(entriesToRemove);
+            return;
+        }
+        if (RejectChangeToFolderShelf())
         {
             return;
         }
@@ -334,6 +355,14 @@ public partial class MainWindow
     /// </summary>
     private void OpenBookshelfEntry(BookshelfEntry bookshelfEntry)
     {
+        // A trashed query or bookshelf has nothing to show: it has to be restored first.
+        if (bookshelfEntry.TrashItem != null && bookshelfEntry.HasNoFile)
+        {
+            MessageBox.Show(this, $"\"{bookshelfEntry.TrashItem.DisplayName}\" is in the trash. Restore it to use it again.",
+                "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         // A query is run rather than read from disk.
         if (bookshelfEntry.IsQuery)
         {
@@ -345,6 +374,13 @@ public partial class MainWindow
         if (currentFilePath != null && bookshelfEntry.HasPath(currentFilePath))
         {
             HidePostItBoard();
+            return;
+        }
+
+        // A trashed file that is gone (e.g. deleted in Explorer) simply drops out of the Trash list.
+        if (!File.Exists(bookshelfEntry.FilePath) && currentBookshelf.IsTrashShelf)
+        {
+            RefreshBookshelfList();
             return;
         }
 
@@ -659,8 +695,8 @@ public partial class MainWindow
     /// <summary>File → Add to bookshelf (Ctrl+D) is available when a saved file that is not on the shelf yet is open.</summary>
     private void AddToBookshelfCommand_CanExecute(object sender, CanExecuteRoutedEventArgs canExecuteDetails)
     {
-        // Files cannot be added by hand to a shelf that shows a folder, nor to a shelf of queries.
-        canExecuteDetails.CanExecute = currentFilePath != null && !currentBookshelf.IsFolderShelf && !currentBookshelf.IsQueryShelf && !IsOnBookshelf(currentFilePath);
+        // Files cannot be added by hand to a shelf that shows a folder (or the Archive), the Trash, nor to a shelf of queries.
+        canExecuteDetails.CanExecute = currentFilePath != null && currentBookshelf.CanEditEntriesByHand && !currentBookshelf.IsQueryShelf && !IsOnBookshelf(currentFilePath);
     }
 
     /// <summary>File → Add to bookshelf (Ctrl+D): puts the open file on the shelf and shows the panel.</summary>
@@ -681,6 +717,18 @@ public partial class MainWindow
     /// <summary>"Add..." button and File menu: picks one or more Markdown files from anywhere and puts them on the shelf.</summary>
     private void AddFilesToBookshelfButton_Click(object sender, RoutedEventArgs clickDetails)
     {
+        // In the Trash and the Archive the button reads "Restore" and puts the selected items back.
+        if (currentBookshelf.IsTrashShelf)
+        {
+            RestoreTrashEntries(SelectedBookshelfEntries);
+            return;
+        }
+        if (currentBookshelf.IsArchiveShelf)
+        {
+            RestoreFromArchive(SelectedBookshelfEntries);
+            return;
+        }
+
         // On a query shelf the button reads "New..." and adds a query instead.
         if (currentBookshelf.IsQueryShelf)
         {
@@ -733,8 +781,8 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Enter opens the selected file, Delete takes the selected files off the shelf,
-    /// Alt+Up / Alt+Down move the selected file up or down the list.
+    /// Enter opens the selected file, Delete takes the selected files off the shelf, Ctrl+Delete moves them to
+    /// the trash, Alt+Up / Alt+Down move the selected file up or down the list.
     /// </summary>
     private void BookshelfList_KeyDown(object sender, KeyEventArgs keyDetails)
     {
@@ -749,6 +797,11 @@ public partial class MainWindow
         if (keyDetails.Key == Key.Enter && BookshelfList.SelectedItem is BookshelfEntry selectedEntry)
         {
             OpenBookshelfEntry(selectedEntry);
+            keyDetails.Handled = true;
+        }
+        else if (keyDetails.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.Control && !currentBookshelf.IsTrashShelf)
+        {
+            MoveEntriesToTrash(SelectedBookshelfEntries);
             keyDetails.Handled = true;
         }
         else if (keyDetails.Key == Key.Delete)

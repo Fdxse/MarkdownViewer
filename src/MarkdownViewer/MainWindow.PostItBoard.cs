@@ -447,6 +447,8 @@ public partial class MainWindow
         var noteContextMenu = new ContextMenu();
         noteContextMenu.Items.Add(openMenuItem);
         noteContextMenu.Items.Add(editMenuItem);
+        // Archive and Move to trash.
+        AddArchiveAndTrashMenuItems(noteContextMenu, bookshelfEntry);
         noteContextMenu.Items.Add(new Separator());
         noteContextMenu.Items.Add(showInFolderMenuItem);
         noteContextMenu.Items.Add(new Separator());

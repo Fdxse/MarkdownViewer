@@ -54,4 +54,8 @@ Change or add macros under **Tools → Macros**.
 
 **Links:** keep the sites you use often under the **Links** menu. Add them with **Links → Edit links**.
 
+**Trash and archive:** right-click a file or post-it note → **Move to trash** (Ctrl+Del) or **Archive**. Both have
+their own shelf at the end of the bookshelf list, with **Restore** to put things back. **Todo → Archive done tasks**
+moves the ticked tasks of the todo list to the archive.
+
 [^1]: Footnotes appear at the bottom of the document.

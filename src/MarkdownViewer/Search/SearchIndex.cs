@@ -33,6 +33,9 @@ public sealed class SearchIndex
     /// <summary>Shelf name shown for todo.md in the results.</summary>
     public const string TodoListShelfName = "Todo list";
 
+    /// <summary>Shelf name of archived files (the Archive bookshelf, which shows the Archive folder next to the exe).</summary>
+    public const string ArchiveShelfName = MarkdownViewer.Archiving.DocumentArchive.FolderName;
+
     /// <summary>
     /// Compact JSON: the file is not meant to be edited by hand, and indenting would only make it bigger.
     /// Letters such as "å" are written as they are instead of as "\u00E5", which also keeps the file small.

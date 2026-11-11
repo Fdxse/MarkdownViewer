@@ -34,6 +34,11 @@ public class SearchIndexDocument
     /// <summary>The bookshelves the document is on (or "Todo list"), shown in grey in the results.</summary>
     public List<string> ShelfNames { get; set; } = new();
 
+    /// <summary>True if the document is only in the archive; such results are marked "(archived)" and listed after the others.</summary>
+    [JsonIgnore]
+    public bool IsArchived => ShelfNames.Count > 0
+        && ShelfNames.All(shelfName => string.Equals(shelfName, SearchIndex.ArchiveShelfName, StringComparison.CurrentCultureIgnoreCase));
+
     /// <summary>For a file: when it was last changed, used to tell whether it must be read again.</summary>
     public DateTime FileLastWriteTimeUtc { get; set; }
 
