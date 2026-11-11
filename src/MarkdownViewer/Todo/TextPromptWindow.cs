@@ -1,12 +1,13 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using MarkdownViewer.Macros;
 
 namespace MarkdownViewer.Todo;
 
 /// <summary>
 /// A small dialog with one line of explanation, a text box and OK/Cancel.
-/// Used to type a new task and to change the todo section heading. Built in code because it is so small.
+/// Used to type a new task, a journal entry (multi-line) and to change the todo section heading. Built in code because it is so small.
 /// </summary>
 public sealed class TextPromptWindow : Window
 {
@@ -27,12 +28,16 @@ public sealed class TextPromptWindow : Window
     /// <param name="promptText">Explanation shown above the text box.</param>
     /// <param name="initialText">Text already in the box (selected, so typing replaces it).</param>
     /// <param name="macroExpander">If given, macros expand while typing in the box, the same way as in the editor.</param>
-    public TextPromptWindow(string windowTitle, string promptText, string initialText, MacroExpander? macroExpander = null)
+    /// <param name="isMultiLine">
+    /// True for a larger box where Enter starts a new line (used for journal entries); Ctrl+Enter is OK then.
+    /// False for a single line where Enter is OK.
+    /// </param>
+    public TextPromptWindow(string windowTitle, string promptText, string initialText, MacroExpander? macroExpander = null, bool isMultiLine = false)
     {
         this.macroExpander = macroExpander;
 
         Title = windowTitle;
-        Width = 460;
+        Width = isMultiLine ? 560 : 460;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -51,6 +56,27 @@ public sealed class TextPromptWindow : Window
             Padding = new Thickness(3),
         };
         answerTextBox.TextChanged += AnswerTextBox_TextChanged;
+
+        if (isMultiLine)
+        {
+            // Enter adds a line inside the box (the box takes the key before the OK button sees it), long lines wrap.
+            answerTextBox.AcceptsReturn = true;
+            answerTextBox.AcceptsTab = false;
+            answerTextBox.TextWrapping = TextWrapping.Wrap;
+            answerTextBox.Height = 180;
+            answerTextBox.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            answerTextBox.VerticalContentAlignment = VerticalAlignment.Top;
+
+            // Ctrl+Enter saves straight from the keyboard, since plain Enter now means "new line".
+            PreviewKeyDown += (_, keyDetails) =>
+            {
+                if (keyDetails.Key == Key.Enter && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+                {
+                    keyDetails.Handled = true;
+                    DialogResult = true;
+                }
+            };
+        }
 
         // Enter = OK (IsDefault), Esc = Cancel (IsCancel).
         var okButton = new Button { Content = "OK", IsDefault = true, MinWidth = 80, Padding = new Thickness(10, 3, 10, 3) };

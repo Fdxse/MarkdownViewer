@@ -264,6 +264,11 @@ public partial class MainWindow
         {
             bookshelfFilePaths.Add(TodoFilePath);
         }
+        // The same goes for the journal.
+        if (File.Exists(JournalFilePath) && !bookshelfFilePaths.Contains(JournalFilePath, StringComparer.OrdinalIgnoreCase))
+        {
+            bookshelfFilePaths.Add(JournalFilePath);
+        }
         string settingsJson = appSettings.ToJson();
 
         BookshelfBackup.BackupResult? backupResult = await TryCreateBackupAsync(bookshelfFilePaths, settingsJson, zipFilePath, backupTime, reportAccessDenied: false);

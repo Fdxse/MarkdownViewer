@@ -88,8 +88,12 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   (default `## Todo`; matched by heading text, added at the end of the file if missing). If the section already has
   tasks, the new one goes directly above the first of them, so text you put between the heading and the list stays put.
   Nothing else in the file is touched. Macros (e.g. `@730`) expand in the task text too. **Ctrl+T** opens the list. Zip all includes `todo.md` too.
+- **Journal** (Journal menu): a plain `journal.md` next to the exe. **Ctrl+J** asks for a note (Enter for a new line,
+  Ctrl+Enter to save) and adds it as `### 2026-11-11 18:07` with the note below, directly above the newest entry, so the
+  latest is always on top. Text you put above the entries (the `# Journal` title) stays put, and nothing else is touched.
+  Macros expand in the note too. **Ctrl+Shift+J** opens the journal. Global search and Zip all include `journal.md`.
 - **Global search** (Search → *Search all documents*, **Ctrl+Shift+F**): searches every file on every bookshelf
-  (folder bookshelves included), `todo.md` and every saved query at once. Results appear as you type, one row per
+  (folder bookshelves included), `todo.md`, `journal.md` and every saved query at once. Results appear as you type, one row per
   document with its bookshelf, folder and up to three matching lines (with line numbers and the words highlighted).
   All words must occur, in any order, ignoring upper/lower case, and a word also finds longer words that contain it
   (`ord` finds *orders*). Put text in `"quotes"` for an exact phrase. **Enter** or a double-click opens the document

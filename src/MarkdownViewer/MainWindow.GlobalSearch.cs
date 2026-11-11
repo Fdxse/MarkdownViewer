@@ -124,6 +124,9 @@ public partial class MainWindow
         // The todo list is searched too, even though it is on no bookshelf.
         listedSources.Add(new SearchIndexSource(TodoFilePath, SearchDocumentKind.File, Path.GetFileName(TodoFilePath),
             new List<string> { SearchIndex.TodoListShelfName }));
+        // The journal too, which also lives next to the exe.
+        listedSources.Add(new SearchIndexSource(JournalFilePath, SearchDocumentKind.File, Path.GetFileName(JournalFilePath),
+            new List<string> { SearchIndex.JournalShelfName }));
         return (listedSources, folderSources);
     }
 

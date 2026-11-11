@@ -49,6 +49,20 @@ public static class AppCommands
         typeof(AppCommands),
         new InputGestureCollection { new KeyGesture(Key.T, ModifierKeys.Control | ModifierKeys.Shift) });
 
+    /// <summary>Asks for a note and adds it at the top of journal.md under a date and time heading (Ctrl+J).</summary>
+    public static readonly RoutedUICommand AddJournalEntry = new(
+        "New journal entry",
+        nameof(AddJournalEntry),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.J, ModifierKeys.Control) });
+
+    /// <summary>Opens journal.md from the exe's folder, creating it if needed (Ctrl+Shift+J).</summary>
+    public static readonly RoutedUICommand OpenJournal = new(
+        "Open journal",
+        nameof(OpenJournal),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.J, ModifierKeys.Control | ModifierKeys.Shift) });
+
     /// <summary>Opens the global search window that searches every bookshelf, the todo list and saved queries (Ctrl+Shift+F).</summary>
     public static readonly RoutedUICommand GlobalSearch = new(
         "Search all documents",

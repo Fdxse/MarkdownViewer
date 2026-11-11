@@ -33,6 +33,9 @@ public sealed class SearchIndex
     /// <summary>Shelf name shown for todo.md in the results.</summary>
     public const string TodoListShelfName = "Todo list";
 
+    /// <summary>Shelf name shown for journal.md in the results.</summary>
+    public const string JournalShelfName = "Journal";
+
     /// <summary>Shelf name of archived files (the Archive bookshelf, which shows the Archive folder next to the exe).</summary>
     public const string ArchiveShelfName = MarkdownViewer.Archiving.DocumentArchive.FolderName;
 
