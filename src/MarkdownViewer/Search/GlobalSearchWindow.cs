@@ -36,6 +36,9 @@ public sealed class GlobalSearchWindow : Window
     /// <summary>Line under the search box: how many documents matched and how fresh the index is.</summary>
     private readonly TextBlock statusText;
 
+    /// <summary>"Include archive": when ticked (the default) archived documents are found too, listed after the others.</summary>
+    private readonly CheckBox includeArchiveCheckBox;
+
     /// <summary>Waits until the user pauses typing before searching, so every key press does not start a search.</summary>
     private readonly DispatcherTimer typingPauseTimer;
 
@@ -82,7 +85,7 @@ public sealed class GlobalSearchWindow : Window
 
         searchHintText = new TextBlock
         {
-            Text = "Search every bookshelf, the todo list and saved queries. Use \"quotes\" for an exact phrase.",
+            Text = "Search every bookshelf, the todo list, the archive and saved queries. Use \"quotes\" for an exact phrase.",
             Foreground = SecondaryTextBrush,
             FontSize = 13,
             Margin = new Thickness(8, 0, 8, 0),
@@ -114,6 +117,16 @@ public sealed class GlobalSearchWindow : Window
                       "Normally not needed: changed files are picked up each time this window opens.",
         };
         refreshIndexButton.Click += (_, _) => RefreshIndexRequested?.Invoke();
+        includeArchiveCheckBox = new CheckBox
+        {
+            Content = "Include archive",
+            IsChecked = true,
+            Margin = new Thickness(0, 0, 12, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Also find archived documents (they are listed after the others and marked \"archived\")",
+        };
+        // Search again straight away with the new choice.
+        includeArchiveCheckBox.Click += (_, _) => _ = RunSearchAsync();
         var keyboardHelpText = new TextBlock
         {
             Text = "Enter or double-click opens  ·  ↓ moves to the results  ·  Esc closes",
@@ -123,7 +136,9 @@ public sealed class GlobalSearchWindow : Window
         };
         var bottomRow = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
         DockPanel.SetDock(refreshIndexButton, Dock.Right);
+        DockPanel.SetDock(includeArchiveCheckBox, Dock.Right);
         bottomRow.Children.Add(refreshIndexButton);
+        bottomRow.Children.Add(includeArchiveCheckBox);
         bottomRow.Children.Add(keyboardHelpText);
 
         var windowLayout = new DockPanel { Margin = new Thickness(12) };
@@ -205,7 +220,8 @@ public sealed class GlobalSearchWindow : Window
         try
         {
             var indexedDocuments = searchIndex.GetDocumentsSnapshot();
-            searchHits = await Task.Run(() => GlobalSearcher.Search(indexedDocuments, searchTerms, thisSearchCancellation.Token), thisSearchCancellation.Token);
+            bool includeArchive = includeArchiveCheckBox.IsChecked == true;
+            searchHits = await Task.Run(() => GlobalSearcher.Search(indexedDocuments, searchTerms, includeArchive, thisSearchCancellation.Token), thisSearchCancellation.Token);
         }
         catch (OperationCanceledException)
         {
@@ -273,6 +289,11 @@ public sealed class GlobalSearchWindow : Window
         // Name of the file or query, with the terms highlighted.
         var titleText = new TextBlock { FontWeight = FontWeights.SemiBold, FontSize = 13, TextTrimming = TextTrimming.CharacterEllipsis };
         AddHighlightedText(titleText.Inlines, indexedDocument.Title, searchTerms);
+        // Archived documents are marked, so they are not mistaken for documents in everyday use.
+        if (indexedDocument.IsArchived)
+        {
+            titleText.Inlines.Add(new Run("  (archived)") { FontWeight = FontWeights.Normal, Foreground = SecondaryTextBrush });
+        }
         rowLayout.Children.Add(titleText);
 
         // "Query · Reports" or "Standard, Notes · C:\Docs\Projects".

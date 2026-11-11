@@ -244,37 +244,6 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// Asks before queries are taken off a shelf, because unlike files they exist nowhere else.
-    /// Returns true if the removal may go ahead.
-    /// </summary>
-    private bool ConfirmQueryRemoval(IReadOnlyCollection<BookshelfEntry> entriesToRemove)
-    {
-        var queriesToRemove = entriesToRemove.Where(bookshelfEntry => bookshelfEntry.IsQuery).ToList();
-        if (queriesToRemove.Count == 0)
-        {
-            return true;
-        }
-
-        string whatText = queriesToRemove.Count == 1 ? $"the query \"{queriesToRemove[0].Query!.Name}\"" : $"{queriesToRemove.Count} queries";
-        var userAnswer = MessageBox.Show(this,
-            $"Delete {whatText}? The SQL and connection settings are deleted too (the database is not touched).",
-            "Markdown Viewer", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (userAnswer != MessageBoxResult.Yes)
-        {
-            return false;
-        }
-
-        // A deleted query can no longer be re-run or edited; its last result stays on screen as an untitled document.
-        if (currentQueryEntry != null && queriesToRemove.Contains(currentQueryEntry))
-        {
-            currentQueryEntry = null;
-            currentQueryRunResult = null;
-            UpdateTitleAndStatus();
-        }
-        return true;
-    }
-
-    /// <summary>
     /// Tells the user that files cannot be put on a query shelf. Returns true if the shown shelf is a
     /// query shelf (so the caller should stop).
     /// </summary>

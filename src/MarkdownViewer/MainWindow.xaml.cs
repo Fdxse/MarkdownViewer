@@ -100,6 +100,9 @@ public partial class MainWindow : Window
         // Ctrl+Z outside the editor undoes the last section sort.
         PreviewKeyDown += SectionSort_PreviewKeyDown;
 
+        // The Trash and Archive folders next to the exe, and their shelves at the end of the drop-down.
+        InitializeTrashAndArchive();
+
         // Show the bookshelf panel as it was when the app was last closed.
         InitializeBookshelf();
 

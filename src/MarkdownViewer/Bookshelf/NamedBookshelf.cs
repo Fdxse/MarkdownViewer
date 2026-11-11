@@ -3,6 +3,19 @@ using System.Text.Json.Serialization;
 
 namespace MarkdownViewer.Bookshelf;
 
+/// <summary>The shelves the app adds by itself at the end of the drop-down; they are never stored in the settings file.</summary>
+public enum BuiltInShelfKind
+{
+    /// <summary>A shelf the user made (or Standard).</summary>
+    None,
+
+    /// <summary>The Archive shelf: a folder shelf showing the Archive folder next to the exe, subfolders included.</summary>
+    Archive,
+
+    /// <summary>The Trash shelf: lists what is in the app's own trash, with Restore and Delete.</summary>
+    Trash,
+}
+
 /// <summary>
 /// One bookshelf: a name (e.g. "Standard", "Documentation", "Post-its") and its files.
 /// There are two kinds:
@@ -71,6 +84,29 @@ public class NamedBookshelf
     /// <summary>True for the Standard shelf. Worked out from the name, so not stored in the settings file.</summary>
     [JsonIgnore]
     public bool IsStandardShelf => HasName(StandardShelfName);
+
+    /// <summary>Archive or Trash for the shelves the app adds by itself; None for every other shelf. Not stored.</summary>
+    [JsonIgnore]
+    public BuiltInShelfKind BuiltInKind { get; init; }
+
+    /// <summary>True for the Archive shelf.</summary>
+    [JsonIgnore]
+    public bool IsArchiveShelf => BuiltInKind == BuiltInShelfKind.Archive;
+
+    /// <summary>True for the Trash shelf.</summary>
+    [JsonIgnore]
+    public bool IsTrashShelf => BuiltInKind == BuiltInShelfKind.Trash;
+
+    /// <summary>True for Archive and Trash, which cannot be renamed, deleted or saved in the settings file.</summary>
+    [JsonIgnore]
+    public bool IsBuiltInShelf => BuiltInKind != BuiltInShelfKind.None;
+
+    /// <summary>
+    /// True if files can be added, removed, sorted and reordered by hand. Not on a folder shelf (its files come from
+    /// the folder, which includes the Archive shelf) and not in the Trash (its entries come from the Trash folder).
+    /// </summary>
+    [JsonIgnore]
+    public bool CanEditEntriesByHand => !IsFolderShelf && !IsTrashShelf;
 
     /// <summary>True if this shelf has the given name (ignoring upper/lower case).</summary>
     public bool HasName(string otherShelfName)
@@ -180,6 +216,15 @@ public class NamedBookshelf
     /// <summary>The shelf name, which is what the drop-down shows (folder, post-it and query shelves are marked as such).</summary>
     public override string ToString()
     {
+        // The built-in shelves show their plain name; the Trash also says how much is in it.
+        if (IsArchiveShelf)
+        {
+            return Name;
+        }
+        if (IsTrashShelf)
+        {
+            return Entries.Count > 0 ? $"{Name} ({Entries.Count})" : Name;
+        }
         if (IsFolderShelf)
         {
             return IsPostItBoard ? $"{Name} (post-its)" : $"{Name} (folder)";

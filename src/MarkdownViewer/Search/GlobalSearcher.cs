@@ -114,9 +114,10 @@ public static class GlobalSearcher
 
     /// <summary>
     /// Finds the documents that contain every term and returns them best first: title matches first, then the files
-    /// with the most matching lines. Runs on a background thread (it reads some files).
+    /// with the most matching lines. Archived documents come after all the others, or are left out when
+    /// <paramref name="includeArchive"/> is false. Runs on a background thread (it reads some files).
     /// </summary>
-    public static List<SearchHit> Search(IEnumerable<SearchIndexDocument> indexedDocuments, IReadOnlyList<string> searchTerms, CancellationToken cancellationToken)
+    public static List<SearchHit> Search(IEnumerable<SearchIndexDocument> indexedDocuments, IReadOnlyList<string> searchTerms, bool includeArchive, CancellationToken cancellationToken)
     {
         if (searchTerms.Count == 0)
         {
@@ -125,9 +126,12 @@ public static class GlobalSearcher
 
         // 1. Candidates from the word lists alone (fast: no files are read).
         var candidateDocuments = indexedDocuments
+            .Where(indexedDocument => includeArchive || !indexedDocument.IsArchived)
             .Where(indexedDocument => HasEveryTermInIndex(indexedDocument, searchTerms))
             .Select(indexedDocument => (Document: indexedDocument, IsTitleMatch: searchTerms.All(searchTerm => indexedDocument.Title.Contains(searchTerm, TermComparison))))
-            .OrderByDescending(candidate => candidate.IsTitleMatch)
+            // Archived documents last, so the files in everyday use are read (and shown) first.
+            .OrderBy(candidate => candidate.Document.IsArchived)
+            .ThenByDescending(candidate => candidate.IsTitleMatch)
             .ThenBy(candidate => candidate.Document.Title, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
         // 2. For the best candidates, read the file to show the matching lines and check exact phrases.
@@ -163,7 +167,8 @@ public static class GlobalSearcher
 
         TrimRememberedFiles();
         return searchHits
-            .OrderByDescending(searchHit => searchHit.IsTitleMatch)
+            .OrderBy(searchHit => searchHit.Document.IsArchived)
+            .ThenByDescending(searchHit => searchHit.IsTitleMatch)
             .ThenByDescending(searchHit => searchHit.MatchingLineCount)
             .ThenBy(searchHit => searchHit.Document.Title, StringComparer.CurrentCultureIgnoreCase)
             .ToList();

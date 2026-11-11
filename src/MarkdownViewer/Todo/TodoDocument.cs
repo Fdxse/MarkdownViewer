@@ -7,7 +7,7 @@ namespace MarkdownViewer.Todo;
 /// Only the line that is added or the single character that is ticked changes: everything else in the
 /// document (the user's own text, order and line endings) is left exactly as it was.
 /// </summary>
-public static class TodoDocument
+public static partial class TodoDocument
 {
     /// <summary>File name of the todo document, stored in the same folder as the exe.</summary>
     public const string FileName = "todo.md";

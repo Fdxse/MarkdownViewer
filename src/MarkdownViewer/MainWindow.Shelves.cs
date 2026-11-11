@@ -44,13 +44,16 @@ public partial class MainWindow
     // Switching shelves
     // ------------------------------------------------------------------
 
-    /// <summary>Fills the shelf drop-down (Standard first, then the others in creation order) and selects the shown shelf.</summary>
+    /// <summary>
+    /// Fills the shelf drop-down (Standard first, then the others in creation order, then Archive and Trash)
+    /// and selects the shown shelf.
+    /// </summary>
     private void RefreshShelfChooser()
     {
         isRefreshingShelfChooser = true;
         try
         {
-            ShelfChooser.ItemsSource = appSettings.Bookshelves.ToList();
+            ShelfChooser.ItemsSource = GetShelvesForChooser();
             ShelfChooser.SelectedItem = currentBookshelf;
         }
         finally
@@ -110,8 +113,10 @@ public partial class MainWindow
                 continue;
             }
 
+            // The Trash shelf is not in the bookshelf list, but its name is taken too.
             bool isNameTaken = appSettings.Bookshelves.Any(existingShelf =>
-                !ReferenceEquals(existingShelf, shelfBeingRenamed) && existingShelf.HasName(enteredName));
+                !ReferenceEquals(existingShelf, shelfBeingRenamed) && existingShelf.HasName(enteredName))
+                || trashShelf.HasName(enteredName);
             if (isNameTaken)
             {
                 MessageBox.Show(this, $"There is already a bookshelf called \"{enteredName}\". Please choose another name.",
@@ -136,21 +141,27 @@ public partial class MainWindow
         {
             if (shelfMenuItem.Tag is RenameShelfMenuTag or DeleteShelfMenuTag)
             {
-                shelfMenuItem.IsEnabled = !currentBookshelf.IsStandardShelf;
+                // Standard, Archive and Trash always exist under their own names.
+                shelfMenuItem.IsEnabled = !currentBookshelf.IsStandardShelf && !currentBookshelf.IsBuiltInShelf;
             }
             else if (shelfMenuItem.Tag is IncludeSubfoldersMenuTag)
             {
-                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+                // The Archive always includes its subfolders.
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf && !currentBookshelf.IsArchiveShelf;
                 shelfMenuItem.IsChecked = currentBookshelf.IsFolderShelf && currentBookshelf.IncludeSubfolders;
             }
             else if (shelfMenuItem.Tag is OpenShelfFolderMenuTag)
             {
-                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf || currentBookshelf.IsTrashShelf;
+            }
+            else if (shelfMenuItem.Tag is EmptyTrashMenuTag)
+            {
+                shelfMenuItem.IsEnabled = trashShelf.Entries.Count > 0;
             }
             else if (shelfMenuItem.Tag is ShowAsPostItBoardMenuTag)
             {
-                // Any folder shelf can be switched between a plain list and a post-it board.
-                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf;
+                // Any folder shelf can be switched between a plain list and a post-it board (not the Archive).
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf && !currentBookshelf.IsArchiveShelf;
                 shelfMenuItem.IsChecked = currentBookshelf.IsFolderShelf && currentBookshelf.IsPostItBoard;
             }
         }
@@ -196,33 +207,13 @@ public partial class MainWindow
         ShowBookshelf(currentBookshelf);
     }
 
-    /// <summary>Shelf menu → Delete this bookshelf (not available for Standard). The files on disk are not touched.</summary>
+    /// <summary>
+    /// Shelf menu → Delete this bookshelf (not available for Standard, Archive and Trash): moves the shelf to the
+    /// trash, after asking. The files on disk are not touched.
+    /// </summary>
     private void DeleteShelfMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
-        if (currentBookshelf.IsStandardShelf)
-        {
-            return;
-        }
-
-        int fileCount = currentBookshelf.Entries.Count;
-        string fileCountText = fileCount == 1 ? "1 file" : $"{fileCount} files";
-        string queryCountText = fileCount == 1 ? "1 query" : $"{fileCount} queries";
-        string whatHappensText = currentBookshelf.IsFolderShelf
-            ? $"It shows the folder {currentBookshelf.FolderPath}. The folder and its files are not touched."
-            : currentBookshelf.IsQueryShelf
-                ? $"It holds {queryCountText}, which are deleted with it (the databases are not touched)."
-                : $"It holds {fileCountText}. The files themselves are not deleted from disk.";
-        var userAnswer = MessageBox.Show(this,
-            $"Delete the bookshelf \"{currentBookshelf.Name}\"?\n\n{whatHappensText}",
-            "Markdown Viewer", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (userAnswer != MessageBoxResult.Yes)
-        {
-            return;
-        }
-
-        appSettings.Bookshelves.Remove(currentBookshelf);
-        SaveSettingsOrWarn();
-        ShowBookshelf(appSettings.StandardBookshelf);
+        MoveCurrentShelfToTrash();
     }
 
     // ------------------------------------------------------------------
@@ -247,11 +238,14 @@ public partial class MainWindow
             .ToList();
         bool hasSelection = SelectedBookshelfEntries.Count > 0;
 
-        // Sorting and removing make no sense on a folder shelf.
+        // Sorting and removing make no sense on a folder shelf (or the Archive).
         foreach (var editingMenuItem in bookshelfContextMenu.Items.OfType<MenuItem>().Where(menuItem => Equals(menuItem.Tag, EditsShelfFilesMenuTag)))
         {
-            editingMenuItem.IsEnabled = !currentBookshelf.IsFolderShelf;
+            editingMenuItem.IsEnabled = currentBookshelf.CanEditEntriesByHand;
         }
+
+        // Archive, Restore from archive and Move to trash.
+        UpdateTrashAndArchiveMenuItems(bookshelfContextMenu);
 
         // Show in folder and Copy path are for files; Edit query is for queries. Hidden where they do not apply.
         foreach (var kindSpecificMenuItem in bookshelfContextMenu.Items.OfType<MenuItem>())

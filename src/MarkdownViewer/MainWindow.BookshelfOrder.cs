@@ -99,7 +99,7 @@ public partial class MainWindow
     /// <summary>Moves the single selected entry one step up (-1) or down (+1). Used by Alt+Up / Alt+Down.</summary>
     private void MoveSelectedBookshelfEntryByOneStep(int stepDirection)
     {
-        if (BookshelfList.SelectedItems.Count != 1 || BookshelfList.SelectedItem is not BookshelfEntry selectedEntry || currentBookshelf.IsFolderShelf)
+        if (BookshelfList.SelectedItems.Count != 1 || BookshelfList.SelectedItem is not BookshelfEntry selectedEntry || !currentBookshelf.CanEditEntriesByHand)
         {
             return;
         }
@@ -149,7 +149,7 @@ public partial class MainWindow
     private void BookshelfList_PreviewMouseMove(object sender, MouseEventArgs mouseDetails)
     {
         // A folder shelf is always sorted by name, so its files cannot be dragged.
-        if (mouseDetails.LeftButton != MouseButtonState.Pressed || bookshelfEntryUnderMouseDown == null || currentBookshelf.IsFolderShelf)
+        if (mouseDetails.LeftButton != MouseButtonState.Pressed || bookshelfEntryUnderMouseDown == null || !currentBookshelf.CanEditEntriesByHand)
         {
             return;
         }

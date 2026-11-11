@@ -45,6 +45,11 @@
                 <Separator />
                 <MenuItem Header="Add to _bookshelf" Command="local:AppCommands.AddToBookshelf" />
                 <MenuItem Header="Add files to boo_kshelf..." Click="AddFilesToBookshelfButton_Click" />
+                <!-- Trash and archive for the open document -->
+                <MenuItem Header="Arc_hive this document" Click="ArchiveOpenDocumentMenuItem_Click"
+                          ToolTip="Move the open file to the Archive folder next to the exe; it can still be searched and restored" />
+                <MenuItem Header="Move this document to the _trash" Click="TrashOpenDocumentMenuItem_Click"
+                          ToolTip="Move the open file to the Trash; it can be restored from the Trash bookshelf" />
                 <!-- Backup: zips every bookshelf file plus settings.json into a timestamped zip next to the exe -->
                 <MenuItem Header="_Zip all (backup bookshelf and settings)" Click="ZipAllMenuItem_Click" />
                 <Separator />
@@ -83,6 +88,8 @@
                 <MenuItem Header="_Open todo list" Command="local:AppCommands.OpenTodoList" InputGestureText="Ctrl+T" />
                 <Separator />
                 <MenuItem Header="_Section for new tasks..." Click="TodoSectionMenuItem_Click" />
+                <MenuItem Header="Archive _done tasks" Click="ArchiveDoneTasksMenuItem_Click"
+                          ToolTip="Move the ticked tasks of todo.md (with their sub-tasks) to Archive\todo-archive.md" />
             </MenuItem>
             <!-- Saved links that open in the default browser. Filled from the settings in code (RebuildLinksMenu). -->
             <MenuItem x:Name="LinksMenu" Header="_Links" />
@@ -138,7 +145,10 @@
                                           ToolTip="A folder bookshelf whose Markdown files are shown as yellow post-it notes instead of one document at a time" />
                                 <Separator />
                                 <MenuItem Header="_Rename this bookshelf..." Tag="RenameShelf" Click="RenameShelfMenuItem_Click" />
-                                <MenuItem Header="_Delete this bookshelf..." Tag="DeleteShelf" Click="DeleteShelfMenuItem_Click" />
+                                <MenuItem Header="_Delete this bookshelf..." Tag="DeleteShelf" Click="DeleteShelfMenuItem_Click"
+                                          ToolTip="Move this bookshelf to the trash (the files themselves are not touched)" />
+                                <MenuItem Header="_Empty the trash..." Tag="EmptyTrash" Click="EmptyTrashMenuItem_Click"
+                                          ToolTip="Delete everything in the Trash for good" />
                                 <Separator />
                                 <!-- Only for folder bookshelves -->
                                 <MenuItem Header="Include _subfolders" Tag="IncludeSubfolders" Click="IncludeSubfoldersMenuItem_Click" />
@@ -205,6 +215,14 @@
                                 <MenuItem Header="_Move to bookshelf" Tag="MoveToShelf" />
                                 <Separator />
                                 <MenuItem Header="_Remove from this bookshelf" InputGestureText="Del" Tag="EditsShelfFiles" Click="RemoveFromBookshelfButton_Click" />
+                                <!-- Trash and archive (the Trash shelf has its own menu, built in code) -->
+                                <Separator />
+                                <MenuItem Header="Arc_hive" Tag="ArchiveFiles" Click="ArchiveBookshelfEntriesMenuItem_Click"
+                                          ToolTip="Move the selected files to the Archive folder; they can still be searched and restored" />
+                                <MenuItem Header="Restore from arc_hive" Tag="RestoreFromArchive" Click="RestoreFromArchiveMenuItem_Click"
+                                          ToolTip="Move the selected files back to where they were archived from" />
+                                <MenuItem Header="Move to _trash" InputGestureText="Ctrl+Del" Click="MoveBookshelfEntriesToTrashMenuItem_Click"
+                                          ToolTip="Move the selected files (or queries) to the Trash; they can be restored from the Trash bookshelf" />
                             </ContextMenu>
                         </ListBox.ContextMenu>
                     </ListBox>

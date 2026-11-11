@@ -38,14 +38,17 @@ public partial class MainWindow
     {
         if (!currentBookshelf.IsFolderShelf)
         {
-            BookshelfEmptyHint.Text = currentBookshelf.IsQueryShelf ? EmptyQueryShelfHintText : EmptyShelfHintText;
+            BookshelfEmptyHint.Text = currentBookshelf.IsTrashShelf ? EmptyTrashHintText
+                : currentBookshelf.IsQueryShelf ? EmptyQueryShelfHintText
+                : EmptyShelfHintText;
             return false;
         }
 
         var previousFilePaths = currentBookshelf.Entries.Select(bookshelfEntry => bookshelfEntry.FilePath).ToList();
         bool folderExists = currentBookshelf.RescanFolder();
 
-        BookshelfEmptyHint.Text = folderExists
+        BookshelfEmptyHint.Text = currentBookshelf.IsArchiveShelf ? EmptyArchiveHintText
+            : folderExists
             ? $"There are no Markdown files in this folder yet:\n{currentBookshelf.FolderPath}"
             : $"The folder was not found. It may have been moved, renamed or deleted, or its drive is not connected:\n{currentBookshelf.FolderPath}";
 
@@ -144,19 +147,32 @@ public partial class MainWindow
     /// </summary>
     private void UpdateShelfEditingControls()
     {
-        bool canEditFiles = !currentBookshelf.IsFolderShelf;
-        AddFilesButton.IsEnabled = canEditFiles;
-        RemoveFilesButton.IsEnabled = canEditFiles;
+        bool canEditFiles = currentBookshelf.CanEditEntriesByHand;
+        // In the Trash and the Archive the Add button is "Restore"; the Trash's Remove button deletes for good.
+        bool isTrashOrArchive = currentBookshelf.IsTrashShelf || currentBookshelf.IsArchiveShelf;
+        AddFilesButton.IsEnabled = canEditFiles || isTrashOrArchive;
+        RemoveFilesButton.IsEnabled = canEditFiles || currentBookshelf.IsTrashShelf;
 
-        // On a query shelf the Add button makes a new query, and Remove deletes queries.
-        AddFilesButton.Content = currentBookshelf.IsQueryShelf ? "New..." : "Add...";
-        AddFilesButton.ToolTip = currentBookshelf.IsQueryShelf ? "Add a new SQL Server query to this bookshelf" : "Add Markdown files to this bookshelf";
-        RemoveFilesButton.ToolTip = currentBookshelf.IsQueryShelf
-            ? "Delete the selected queries"
+        // On a query shelf the Add button makes a new query, and Remove moves queries to the trash.
+        AddFilesButton.Content = isTrashOrArchive ? "Restore" : currentBookshelf.IsQueryShelf ? "New..." : "Add...";
+        AddFilesButton.ToolTip = currentBookshelf.IsTrashShelf ? "Put the selected items back where they came from"
+            : currentBookshelf.IsArchiveShelf ? "Move the selected files back to where they were archived from"
+            : currentBookshelf.IsQueryShelf ? "Add a new SQL Server query to this bookshelf"
+            : "Add Markdown files to this bookshelf";
+        RemoveFilesButton.Content = currentBookshelf.IsTrashShelf ? "Delete" : "Remove";
+        RemoveFilesButton.ToolTip = currentBookshelf.IsTrashShelf ? "Delete the selected items for good"
+            : currentBookshelf.IsQueryShelf ? "Move the selected queries to the trash"
             : "Remove the selected files from this bookshelf (the files themselves are not deleted)";
 
+        // The Trash has its own right-click menu (Restore, Delete for good...).
+        BookshelfList.ContextMenu = currentBookshelf.IsTrashShelf ? trashContextMenu : normalBookshelfContextMenu;
+
         // The drop-down's tooltip says which folder a folder shelf shows.
-        ShelfChooser.ToolTip = currentBookshelf.IsFolderShelf
+        ShelfChooser.ToolTip = currentBookshelf.IsTrashShelf
+            ? $"Things moved to the trash. They go to the Windows Recycle Bin after {appSettings.TrashKeepDays} days ({trashBin.TrashFolderPath})"
+            : currentBookshelf.IsArchiveShelf
+            ? $"Archived files: the Archive folder {currentBookshelf.FolderPath}"
+            : currentBookshelf.IsFolderShelf
             ? (currentBookshelf.IsPostItBoard ? "Post-it board: " : string.Empty)
                 + $"Shows the Markdown files in {currentBookshelf.FolderPath}" + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
             : currentBookshelf.IsQueryShelf ? "A bookshelf of saved SQL Server queries" : "Choose a bookshelf";
@@ -168,9 +184,20 @@ public partial class MainWindow
     /// </summary>
     private bool RejectChangeToFolderShelf()
     {
-        if (!currentBookshelf.IsFolderShelf)
+        if (currentBookshelf.CanEditEntriesByHand)
         {
             return false;
+        }
+
+        // The Trash and the Archive get their own explanation.
+        if (currentBookshelf.IsTrashShelf || currentBookshelf.IsArchiveShelf)
+        {
+            string explanationText = currentBookshelf.IsTrashShelf
+                ? "The Trash lists what was moved to the trash, so files cannot be added here.\n\nRight-click a file and choose Move to trash (Ctrl+Del) instead."
+                : "The Archive lists the files in the Archive folder, so its list cannot be changed by hand.\n\n" +
+                  "Right-click a file on another bookshelf and choose Archive to add it, or use Restore or Move to trash (Ctrl+Del) here.";
+            MessageBox.Show(this, explanationText, "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
+            return true;
         }
 
         MessageBox.Show(this,
@@ -249,7 +276,8 @@ public partial class MainWindow
     /// <summary>Shelf menu → Include subfolders (folder shelves only): switches subfolders on or off.</summary>
     private void IncludeSubfoldersMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
-        if (!currentBookshelf.IsFolderShelf)
+        // The Archive always shows its subfolders (one per bookshelf the files came from).
+        if (!currentBookshelf.IsFolderShelf || currentBookshelf.IsArchiveShelf)
         {
             return;
         }
@@ -260,10 +288,16 @@ public partial class MainWindow
         ShowBookshelf(currentBookshelf);
     }
 
-    /// <summary>Shelf menu → Open the folder (folder shelves only): shows the folder in Explorer.</summary>
+    /// <summary>Shelf menu → Open the folder (folder shelves and the Trash): shows the folder in Explorer.</summary>
     private void OpenShelfFolderMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
-        if (currentBookshelf.IsFolderShelf)
+        if (currentBookshelf.IsTrashShelf)
+        {
+            // The Trash folder is only made when something is first moved to the trash.
+            Directory.CreateDirectory(trashBin.TrashFolderPath);
+            OpenWithDefaultProgram(trashBin.TrashFolderPath);
+        }
+        else if (currentBookshelf.IsFolderShelf)
         {
             OpenWithDefaultProgram(currentBookshelf.FolderPath!);
         }

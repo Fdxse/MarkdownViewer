@@ -29,7 +29,7 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
 - **Several bookshelves**: the drop-down at the top of the panel switches between shelves, and the **⋯** button
   creates, renames or deletes them (e.g. *Documentation*, *Post-its*). The **Standard** shelf always exists and is
   the one shown when the app starts. A file can be on several shelves: right-click → *Add to bookshelf* or
-  *Move to bookshelf*. Each shelf keeps its own order. Deleting a shelf never deletes the files.
+  *Move to bookshelf*. Each shelf keeps its own order. Deleting a shelf moves it to the Trash and never deletes the files.
 - **Folder bookshelves** (⋯ → *New folder bookshelf...*): pick a folder and the shelf always lists every Markdown file
   in it (`.md`, `.markdown`, ...), optionally including subfolders (⋯ → *Include subfolders*). Files that are added,
   removed or renamed in the folder appear and disappear by themselves. The list is sorted by name; files cannot be
@@ -60,6 +60,24 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   Connection strings (including passwords) are stored in `settings.json` **encrypted with Windows DPAPI**, readable only
   by your Windows account on this computer, so Zip all never contains them as plain text. After restoring settings on
   another computer, open each query's settings and enter the connection again (server and database names are kept).
+- **Trash**: right-click a file (or a post-it note, or a query) → *Move to trash*, or select it and press
+  **Ctrl+Del** (File → *Move this document to the trash* does the same for the open file). Files are moved into a
+  `Trash` folder next to the exe (or in `%APPDATA%\MarkdownViewer` if that folder is read-only), one folder per item
+  with an `item.json` saying where it came from. Deleted bookshelves and queries go there too. The **Trash** shelf at
+  the end of the drop-down lists everything: **Restore** puts a file back where it was and back on its shelves (if a
+  file with that name is there now, it offers to keep both), and **Delete** removes items for good; ⋯ → *Empty the
+  trash* deletes everything. Items older than 30 days are moved on to the **Windows Recycle Bin** at startup
+  (`TrashKeepDays` in `settings.json`; 0 keeps them in the Trash). The trash is not searched and not part of Zip all.
+  *Remove from this bookshelf* (Del) still only takes a file off the shelf; the file is not touched.
+- **Archive**: right-click a file or post-it note → *Archive* (or File → *Archive this document*) moves it into an
+  `Archive` folder next to the exe, in a subfolder named after its bookshelf (e.g. `Archive\Projects\notes.md`), and
+  takes it off the everyday shelves. The **Archive** shelf at the end of the drop-down shows the folder; right-click →
+  *Restore from archive* (or the **Restore** button) moves a file back to where it was and onto its shelves.
+  `archive.json` in the folder remembers where each file came from. Global search still finds archived documents,
+  marks them *(archived)* and lists them after the others (untick *Include archive* in the search window to leave them
+  out). Zip all includes the archive.
+  **Todo → Archive done tasks** moves every ticked task of `todo.md` (with the sub-tasks and notes indented below it)
+  into `Archive\todo-archive.md`, newest first under a dated heading and the section it came from.
 - **Zip all** (File → Zip all): backs up every bookshelf file plus `settings.json` into a timestamped
   `MarkdownViewer-backup-<date>_<time>.zip` next to the exe (or a place you pick, if that folder is read-only).
   Files keep their original folder structure under `files/` (e.g. `files/C/Notes/README.md`), so files with the same
