@@ -332,26 +332,27 @@
                                             Background="White" />
                     </Grid>
 
-                    <!-- The post-it board: one yellow note per Markdown file in the board's folder. Filled in code (MainWindow.PostItBoard.cs). -->
-                    <ScrollViewer x:Name="PostItBoardView"
-                                  Visibility="Collapsed"
-                                  AllowDrop="True"
-                                  DragOver="PostItBoardView_DragOver"
-                                  Drop="PostItBoardView_Drop"
-                                  Background="#ECE5D3"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  Focusable="False">
-                        <StackPanel Margin="16,12,16,16">
-                            <!-- Board name, and the folder it shows -->
+                    <!-- The post-it board: one yellow note per Markdown file in the board's folder. Filled in code (MainWindow.PostItBoard.cs).
+                         The notes lie on a free-form canvas: they can be moved anywhere, stacked and tilted (MainWindow.PostItBoardLayout.cs). -->
+                    <DockPanel x:Name="PostItBoardView"
+                               Visibility="Collapsed"
+                               Background="#ECE5D3">
+                        <!-- Board name, and the folder it shows; stays at the top while the notes scroll -->
+                        <StackPanel DockPanel.Dock="Top" Margin="16,12,16,4">
                             <TextBlock x:Name="PostItBoardTitleText" FontSize="20" FontWeight="SemiBold" Foreground="#3D3A30" />
-                            <TextBlock x:Name="PostItBoardSubtitleText" Margin="0,2,0,8" Foreground="#6B6553" TextWrapping="Wrap" />
+                            <TextBlock x:Name="PostItBoardSubtitleText" Margin="0,2,0,4" Foreground="#6B6553" TextWrapping="Wrap" />
                             <!-- Shown instead of the notes while the folder has no Markdown files -->
                             <TextBlock x:Name="PostItBoardEmptyHint" Margin="0,12" Foreground="#6B6553" TextWrapping="Wrap" Visibility="Collapsed" />
-                            <!-- The notes themselves, flowing left to right and wrapping onto new rows -->
-                            <WrapPanel x:Name="PostItNotesPanel" />
                         </StackPanel>
-                    </ScrollViewer>
+                        <!-- The notes, scrolling both ways when they are spread out further than the window -->
+                        <ScrollViewer x:Name="PostItBoardScroller"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      Focusable="False">
+                            <!-- Each note has its own place (Canvas.Left/Top), tilt and stacking (Panel.ZIndex). Size set in code to fit the notes. -->
+                            <Canvas x:Name="PostItNotesCanvas" Margin="16,4,16,16" Background="Transparent" />
+                        </ScrollViewer>
+                    </DockPanel>
                 </Grid>
             </DockPanel>
         </Grid>
