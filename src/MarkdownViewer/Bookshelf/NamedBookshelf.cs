@@ -82,6 +82,15 @@ public class NamedBookshelf
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<string>? PostItNoteOrder { get; set; }
 
+    /// <summary>
+    /// For a post-it board: where each note lies on the board, how much it is tilted and how high it is in
+    /// the stack, by the file's display name. Notes without an entry are laid out in rows in free spots.
+    /// Null until the user moves or tilts a note.
+    /// </summary>
+    // Left out of the settings file until the user moves a note.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, PostItNotePlacement>? PostItNotePlacements { get; set; }
+
     /// <summary>True if this shelf lists a folder instead of files the user added.</summary>
     [JsonIgnore]
     public bool IsFolderShelf => !string.IsNullOrWhiteSpace(FolderPath);
@@ -248,6 +257,7 @@ public class NamedBookshelf
         IncludeSubfolders = IncludeSubfolders,
         IsPostItBoard = IsPostItBoard,
         PostItNoteOrder = PostItNoteOrder,
+        PostItNotePlacements = PostItNotePlacements,
     };
 
     /// <summary>The shelf name, which is what the drop-down shows (folder, post-it and query shelves are marked as such).</summary>
