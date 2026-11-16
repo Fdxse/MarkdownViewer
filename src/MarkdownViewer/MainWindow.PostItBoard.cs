@@ -83,6 +83,9 @@ public partial class MainWindow
         /// <summary>The "Click to read more" hint in the footer, shown only when the text does not fit.</summary>
         public required FrameworkElement ReadMoreHint { get; init; }
 
+        /// <summary>The note's tilt; its angle is changed when the user tilts the note.</summary>
+        public required RotateTransform TiltTransform { get; init; }
+
         /// <summary>True if the text does not fit on the note, so a click opens it as a document.</summary>
         public bool IsOverflowing { get; set; }
     }
@@ -228,7 +231,9 @@ public partial class MainWindow
     /// <summary>Clears the board and draws one note per Markdown file of the shown shelf, plus the board's title.</summary>
     private void RebuildPostItNotes()
     {
-        PostItNotesPanel.Children.Clear();
+        PostItNotesCanvas.Children.Clear();
+        // Lay the (now empty) board out first, so its width is known when new notes are put into rows.
+        PostItBoardView.UpdateLayout();
 
         PostItBoardTitleText.Text = currentBookshelf.Name;
         int fileCount = currentBookshelf.Entries.Count;
@@ -238,7 +243,8 @@ public partial class MainWindow
         PostItBoardSubtitleText.Text =
             $"{noteCountText} from {currentBookshelf.FolderPath}{subfolderText}{cutShortText}. " +
             "Click a note marked \"Click to read more\" to open it as a document; double-click any note to open it. " +
-            "Drag a note to move it. Ctrl+N adds a new note to this folder.";
+            "Drag a note anywhere, also on top of other notes; tilt it with the round handle in its corner (or Shift + mouse wheel). " +
+            "Right-click a note for more. Ctrl+N adds a new note to this folder.";
 
         // No files: say why (an empty folder, or a folder that is gone).
         PostItBoardEmptyHint.Visibility = fileCount == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -246,14 +252,19 @@ public partial class MainWindow
             ? "There are no Markdown files in this folder yet. Save a .md file there and its note appears here by itself."
             : "The folder was not found. It may have been moved, renamed or deleted, or its drive is not connected.";
 
+        var drawnNotes = new List<Border>();
         foreach (var bookshelfEntry in currentBookshelf.Entries.Take(MaximumPostItNoteCount))
         {
-            PostItNotesPanel.Children.Add(CreatePostItNote(bookshelfEntry));
+            var postItNote = CreatePostItNote(bookshelfEntry);
+            drawnNotes.Add(postItNote);
+            PostItNotesCanvas.Children.Add(postItNote);
         }
+        // Each note to its saved place, tilt and stacking (or into rows if it has none yet).
+        PlacePostItNotesOnBoard(drawnNotes);
     }
 
     /// <summary>Builds one yellow note showing the rendered Markdown of a file, with its file name at the bottom.</summary>
-    private FrameworkElement CreatePostItNote(BookshelfEntry bookshelfEntry)
+    private Border CreatePostItNote(BookshelfEntry bookshelfEntry)
     {
         // Read the file. A file that cannot be read gets a note saying so instead of breaking the board.
         string noteMarkdown;
@@ -354,9 +365,42 @@ public partial class MainWindow
         noteLayout.Children.Add(noteFooter);
         noteLayout.Children.Add(textArea);
 
+        // A round handle in the top-right corner: drag it to tilt the note.
+        var tiltHandle = new Border
+        {
+            Width = 20,
+            Height = 20,
+            CornerRadius = new CornerRadius(10),
+            Margin = new Thickness(0, 2, 4, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Background = PostItGlueStripBrush,
+            BorderBrush = PostItFooterTextBrush,
+            BorderThickness = new Thickness(1),
+            Cursor = Cursors.Hand,
+            ToolTip = "Drag to tilt the note (or hold Shift and turn the mouse wheel)",
+            Visibility = Visibility.Hidden,
+            Child = new TextBlock
+            {
+                Text = "↻",
+                FontSize = 12,
+                Foreground = PostItReadMoreBrush,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            },
+        };
+        tiltHandle.MouseLeftButtonDown += PostItTiltHandle_MouseLeftButtonDown;
+        var noteLayoutWithTiltHandle = new Grid();
+        noteLayoutWithTiltHandle.Children.Add(noteLayout);
+        noteLayoutWithTiltHandle.Children.Add(tiltHandle);
+
+        // The tilt: a small one worked out from the name, until the user tilts the note (then the saved tilt is used).
+        var tiltTransform = new RotateTransform(GetPostItTiltAngle(bookshelfEntry.DisplayName));
+
         var noteState = new PostItNoteState
         {
             BookshelfEntry = bookshelfEntry,
+            TiltTransform = tiltTransform,
             WasTextCutShort = wasTextCutShort,
             OverflowFade = overflowFade,
             ReadMoreHint = readMoreHint,
@@ -367,22 +411,27 @@ public partial class MainWindow
         {
             Width = PostItNoteWidth,
             Height = PostItNoteHeight,
-            Margin = new Thickness(10),
             Background = PostItNoteBrush,
             BorderBrush = PostItGlueStripBrush,
             BorderThickness = new Thickness(0, 6, 0, 0),
-            Child = noteLayout,
+            Child = noteLayoutWithTiltHandle,
             Tag = noteState,
             ToolTip = bookshelfEntry.FilePath,
             Effect = new DropShadowEffect { BlurRadius = 8, ShadowDepth = 3, Direction = 290, Opacity = 0.25 },
             RenderTransformOrigin = new Point(0.5, 0.5),
-            RenderTransform = new RotateTransform(GetPostItTiltAngle(bookshelfEntry.DisplayName)),
+            RenderTransform = tiltTransform,
         };
+        tiltHandle.Tag = postItNote;
         postItNote.MouseLeftButtonUp += PostItNote_MouseLeftButtonUp;
         postItNote.MouseLeftButtonDown += PostItNote_MouseLeftButtonDown;
-        // Dragging a note moves it to another place on the board (MainWindow.PostItBoardOrder.cs).
+        // Moving and tilting a note (MainWindow.PostItBoardLayout.cs).
         postItNote.MouseMove += PostItNote_MouseMove;
-        postItNote.ContextMenu = CreatePostItNoteContextMenu(bookshelfEntry);
+        postItNote.LostMouseCapture += PostItNote_LostMouseCapture;
+        postItNote.PreviewMouseWheel += PostItNote_PreviewMouseWheel;
+        // The tilt handle only shows while the mouse is over the note, so the board stays clean.
+        postItNote.MouseEnter += (_, _) => tiltHandle.Visibility = Visibility.Visible;
+        postItNote.MouseLeave += (_, _) => tiltHandle.Visibility = Visibility.Hidden;
+        postItNote.ContextMenu = CreatePostItNoteContextMenu(bookshelfEntry, postItNote);
 
         // Find out whether the text fits once the viewer has laid it out. The scroll viewer inside reports a
         // change of text height (also later, e.g. when a Mermaid diagram finishes drawing), so listen to that.
@@ -433,7 +482,7 @@ public partial class MainWindow
     }
 
     /// <summary>Right-click menu of a note: open it, open it for editing, or show it in Explorer.</summary>
-    private ContextMenu CreatePostItNoteContextMenu(BookshelfEntry bookshelfEntry)
+    private ContextMenu CreatePostItNoteContextMenu(BookshelfEntry bookshelfEntry, Border postItNote)
     {
         var openMenuItem = new MenuItem { Header = "_Open as document" };
         openMenuItem.Click += (_, _) => OpenPostItNoteAsDocument(bookshelfEntry, startEditing: false);
@@ -452,7 +501,8 @@ public partial class MainWindow
         noteContextMenu.Items.Add(new Separator());
         noteContextMenu.Items.Add(showInFolderMenuItem);
         noteContextMenu.Items.Add(new Separator());
-        noteContextMenu.Items.Add(CreateSortPostItNotesByNameMenuItem());
+        // Tilting, stacking and tidying up the board.
+        noteContextMenu.Items.Add(CreatePostItArrangeMenu(postItNote));
         return noteContextMenu;
     }
 
@@ -461,24 +511,38 @@ public partial class MainWindow
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// A double-click opens any note as a document, also one whose text fits. A single press is remembered,
-    /// because moving the mouse with the button held down starts dragging the note.
+    /// A double-click opens any note as a document, also one whose text fits. A single press may become a
+    /// click or, if the mouse moves with the button held down, a move of the note.
     /// </summary>
     private void PostItNote_MouseLeftButtonDown(object sender, MouseButtonEventArgs mouseDetails)
     {
-        RememberPostItNotePressed(sender, mouseDetails);
-        if (mouseDetails.ClickCount == 2 && sender is Border { Tag: PostItNoteState noteState })
+        if (sender is not Border { Tag: PostItNoteState noteState } pressedNote)
+        {
+            return;
+        }
+
+        if (mouseDetails.ClickCount == 2)
         {
             mouseDetails.Handled = true;
+            EndPostItNotePress();
             OpenPostItNoteAsDocument(noteState.BookshelfEntry, startEditing: false);
+            return;
         }
+
+        BeginPostItNotePress(pressedNote, mouseDetails);
     }
 
     /// <summary>A single click opens a note as a document only if its text does not fit on the note.</summary>
     private void PostItNote_MouseLeftButtonUp(object sender, MouseButtonEventArgs mouseDetails)
     {
-        // The button was let go without dragging: the press no longer counts as the start of a drag.
-        postItNotePressedForDrag = null;
+        // A note that was moved or tilted is now saved, and the release does not count as a click.
+        var finishedAction = EndPostItNotePress();
+        if (finishedAction is PostItNoteMouseAction.Moving or PostItNoteMouseAction.Tilting)
+        {
+            mouseDetails.Handled = true;
+            return;
+        }
+
         if (sender is Border { Tag: PostItNoteState noteState } && noteState.IsOverflowing)
         {
             mouseDetails.Handled = true;
