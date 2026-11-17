@@ -83,6 +83,8 @@
             <MenuItem Header="_Tools">
                 <!-- Text macros such as "@730" that expand while typing in the editor -->
                 <MenuItem Header="_Macros..." Click="MacroSettingsMenuItem_Click" />
+                <!-- The colours (with categories) a post-it note can be given besides the standard yellow -->
+                <MenuItem Header="_Post-it colours..." Click="PostItColourSettingsMenuItem_Click" />
             </MenuItem>
             <!-- The todo list: a plain todo.md next to the exe. New tasks go to the top of a chosen section. -->
             <MenuItem Header="T_odo">
@@ -339,7 +341,7 @@
                                             Background="White" />
                     </Grid>
 
-                    <!-- The post-it board: one yellow note per Markdown file in the board's folder. Filled in code (MainWindow.PostItBoard.cs).
+                    <!-- The post-it board: one note (yellow, or a colour from the palette) per Markdown file in the board's folder. Filled in code (MainWindow.PostItBoard.cs).
                          The notes lie on a free-form canvas: they can be moved anywhere, stacked and tilted (MainWindow.PostItBoardLayout.cs). -->
                     <DockPanel x:Name="PostItBoardView"
                                Visibility="Collapsed"
@@ -348,6 +350,8 @@
                         <StackPanel DockPanel.Dock="Top" Margin="16,12,16,4">
                             <TextBlock x:Name="PostItBoardTitleText" FontSize="20" FontWeight="SemiBold" Foreground="#3D3A30" />
                             <TextBlock x:Name="PostItBoardSubtitleText" Margin="0,2,0,4" Foreground="#6B6553" TextWrapping="Wrap" />
+                            <!-- Legend: which colour means which category, for the colours used on this board. Filled in code (MainWindow.PostItColours.cs). -->
+                            <WrapPanel x:Name="PostItBoardColourLegend" Margin="0,0,0,4" Visibility="Collapsed" />
                             <!-- Shown instead of the notes while the folder has no Markdown files -->
                             <TextBlock x:Name="PostItBoardEmptyHint" Margin="0,12" Foreground="#6B6553" TextWrapping="Wrap" Visibility="Collapsed" />
                         </StackPanel>

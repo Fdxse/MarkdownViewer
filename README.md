@@ -41,6 +41,11 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   are added, removed or saved. Any folder bookshelf can be switched with ⋯ → *Show as post-it board*.
   **Ctrl+N** on a board asks for a name and creates a new note (`<name>.md`) in the board's folder, opened for
   editing, so Ctrl+S saves it straight there.
+- **Post-it colours**: notes are the standard yellow until you pick another colour: right-click a note → *Colour*.
+  The colours come from a fixed palette that you extend in **Tools → Post-it colours...**: each colour has a name,
+  a hex value (`#RRGGBB`) and a category that says what it means (for example *Blue – Work*). A legend above the
+  board shows which colour means which category. The palette is stored in settings.json (`PostItColours`), and each
+  board remembers its notes' colours (`PostItNoteColourIds`); notes in a colour that is removed turn yellow again.
 - **Query bookshelves** (⋯ → *New query bookshelf...*): a shelf of saved **Microsoft SQL Server** queries instead of files.
   Click **New...** to open a query's settings page (used instead of the editor): name, server, database, Windows login
   or SQL Server login, the SQL, and what it returns:

@@ -13,7 +13,7 @@ using MarkdownViewer.Todo;
 namespace MarkdownViewer;
 
 /// <summary>
-/// Post-it boards: a folder bookshelf whose Markdown files are shown as small yellow notes in the
+/// Post-it boards: a folder bookshelf whose Markdown files are shown as small notes (yellow unless the user gave them a colour) in the
 /// document area, one note per file. A note whose text fits is simply read on the board. A note whose
 /// text does not fit gets a "Click to read more" footer, and clicking it opens the file as a normal
 /// document. The bar above that document leads back to the board.
@@ -47,11 +47,7 @@ public partial class MainWindow
     /// <summary>Most notes drawn on one board, so a folder with thousands of files does not freeze the app.</summary>
     private const int MaximumPostItNoteCount = 300;
 
-    /// <summary>Post-it yellow: the colour of the notes.</summary>
-    private static readonly Brush PostItNoteBrush = CreateFrozenPostItBrush("#FFF68F");
-
-    /// <summary>A slightly darker yellow for the strip along the top of a note (where the glue would be).</summary>
-    private static readonly Brush PostItGlueStripBrush = CreateFrozenPostItBrush("#F7EB6E");
+    // The paper colour of a note (standard yellow, or a colour from the palette) is set in MainWindow.PostItColours.cs.
 
     /// <summary>Muted brown-grey for the file name in a note's footer.</summary>
     private static readonly Brush PostItFooterTextBrush = CreateFrozenPostItBrush("#7A7048");
@@ -78,10 +74,13 @@ public partial class MainWindow
         public required bool WasTextCutShort { get; init; }
 
         /// <summary>Fade at the bottom of the text, shown only when the text runs past the end of the note.</summary>
-        public required FrameworkElement OverflowFade { get; init; }
+        public required Border OverflowFade { get; init; }
 
         /// <summary>The "Click to read more" hint in the footer, shown only when the text does not fit.</summary>
         public required FrameworkElement ReadMoreHint { get; init; }
+
+        /// <summary>The round tilt handle in the corner; it takes the note's colour.</summary>
+        public required Border TiltHandle { get; init; }
 
         /// <summary>The note's tilt; its angle is changed when the user tilts the note.</summary>
         public required RotateTransform TiltTransform { get; init; }
@@ -244,7 +243,7 @@ public partial class MainWindow
             $"{noteCountText} from {currentBookshelf.FolderPath}{subfolderText}{cutShortText}. " +
             "Click a note marked \"Click to read more\" to open it as a document; double-click any note to open it. " +
             "Drag a note anywhere, also on top of other notes; tilt it with the round handle in its corner (or Shift + mouse wheel). " +
-            "Right-click a note for more. Ctrl+N adds a new note to this folder.";
+            "Right-click a note for more, such as its colour. Ctrl+N adds a new note to this folder.";
 
         // No files: say why (an empty folder, or a folder that is gone).
         PostItBoardEmptyHint.Visibility = fileCount == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -261,6 +260,8 @@ public partial class MainWindow
         }
         // Each note to its saved place, tilt and stacking (or into rows if it has none yet).
         PlacePostItNotesOnBoard(drawnNotes);
+        // Which colour means what, for the colours used on this board.
+        UpdatePostItColourLegend();
     }
 
     /// <summary>Builds one yellow note showing the rendered Markdown of a file, with its file name at the bottom.</summary>
@@ -316,14 +317,14 @@ public partial class MainWindow
             LayoutTransform = new ScaleTransform(PostItContentScale, PostItContentScale),
         };
 
-        // A fade from transparent to yellow over the last lines, shown when the text runs past the bottom.
+        // A fade from transparent to the note's colour over the last lines, shown when the text runs past the bottom.
+        // (Its colours are set together with the note's colour, below.)
         var overflowFade = new Border
         {
             Height = 36,
             VerticalAlignment = VerticalAlignment.Bottom,
             IsHitTestVisible = false,
             Visibility = Visibility.Collapsed,
-            Background = new LinearGradientBrush(Color.FromArgb(0, 0xFF, 0xF6, 0x8F), Color.FromRgb(0xFF, 0xF6, 0x8F), 90),
         };
 
         // Footer: the file name on the left and, for notes that do not fit, "Click to read more" on the right.
@@ -374,7 +375,6 @@ public partial class MainWindow
             Margin = new Thickness(0, 2, 4, 0),
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Background = PostItGlueStripBrush,
             BorderBrush = PostItFooterTextBrush,
             BorderThickness = new Thickness(1),
             Cursor = Cursors.Hand,
@@ -401,18 +401,17 @@ public partial class MainWindow
         {
             BookshelfEntry = bookshelfEntry,
             TiltTransform = tiltTransform,
+            TiltHandle = tiltHandle,
             WasTextCutShort = wasTextCutShort,
             OverflowFade = overflowFade,
             ReadMoreHint = readMoreHint,
         };
 
-        // The note itself: yellow paper with a darker glue strip on top, a soft shadow and a slight tilt.
+        // The note itself: coloured paper with a darker glue strip on top, a soft shadow and a slight tilt.
         var postItNote = new Border
         {
             Width = PostItNoteWidth,
             Height = PostItNoteHeight,
-            Background = PostItNoteBrush,
-            BorderBrush = PostItGlueStripBrush,
             BorderThickness = new Thickness(0, 6, 0, 0),
             Child = noteLayoutWithTiltHandle,
             Tag = noteState,
@@ -422,6 +421,8 @@ public partial class MainWindow
             RenderTransform = tiltTransform,
         };
         tiltHandle.Tag = postItNote;
+        // Standard yellow, or the colour the user gave this note (MainWindow.PostItColours.cs).
+        PaintPostItNote(postItNote, noteState, GetPostItNoteColour(bookshelfEntry));
         postItNote.MouseLeftButtonUp += PostItNote_MouseLeftButtonUp;
         postItNote.MouseLeftButtonDown += PostItNote_MouseLeftButtonDown;
         // Moving and tilting a note (MainWindow.PostItBoardLayout.cs).
@@ -501,6 +502,8 @@ public partial class MainWindow
         noteContextMenu.Items.Add(new Separator());
         noteContextMenu.Items.Add(showInFolderMenuItem);
         noteContextMenu.Items.Add(new Separator());
+        // Choosing the note's colour from the palette (MainWindow.PostItColours.cs).
+        noteContextMenu.Items.Add(CreatePostItColourMenu(bookshelfEntry, postItNote));
         // Tilting, stacking and tidying up the board.
         noteContextMenu.Items.Add(CreatePostItArrangeMenu(postItNote));
         return noteContextMenu;
