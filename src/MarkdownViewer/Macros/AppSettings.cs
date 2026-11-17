@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MarkdownViewer.Links;
 using MarkdownViewer.Bookshelf;
+using MarkdownViewer.PostIts;
 
 namespace MarkdownViewer.Macros;
 
@@ -66,6 +67,23 @@ public class AppSettings
     /// </summary>
     public string TodoSectionHeading { get; set; } = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
 
+    /// <summary>
+    /// The colours a post-it note can be given besides the standard yellow, each with a category
+    /// (Tools → Post-it colours). Null in settings files from before colours existed; <see cref="Load"/>
+    /// then fills in the example palette. An empty list means the user removed them all (only yellow is left).
+    /// </summary>
+    public List<PostItColour>? PostItColours { get; set; }
+
+    /// <summary>The palette colour with the given id, or null (meaning the standard yellow) if there is none.</summary>
+    public PostItColour? FindPostItColour(string? colourId)
+    {
+        if (string.IsNullOrEmpty(colourId) || PostItColours == null)
+        {
+            return null;
+        }
+        return PostItColours.FirstOrDefault(paletteColour => string.Equals(paletteColour.Id, colourId, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Number of days an item stays in the app's Trash before it is moved on to the Windows Recycle Bin. 0 keeps items forever.</summary>
     public const int DefaultTrashKeepDays = 30;
 
@@ -79,6 +97,7 @@ public class AppSettings
     public static AppSettings CreateDefaults() => new()
     {
         Bookshelves = { new NamedBookshelf { Name = NamedBookshelf.StandardShelfName } },
+        PostItColours = PostItColour.CreateDefaultPalette(),
         Macros =
         {
             new MacroDefinition
@@ -115,6 +134,7 @@ public class AppSettings
                 loadedSettings.TodoSectionHeading = MarkdownViewer.Todo.TodoDocument.DefaultSectionHeading;
             }
             loadedSettings.RepairBookshelves();
+            loadedSettings.RepairPostItColours();
             return loadedSettings;
         }
         catch (Exception readError)
@@ -175,6 +195,30 @@ public class AppSettings
             {
                 RepairQueryEntries(bookshelf);
             }
+        }
+    }
+
+    /// <summary>
+    /// Makes the post-it palette usable whatever the file contained: settings from before colours existed get
+    /// the example palette, and colours with an invalid hex value or a missing or repeated id are fixed.
+    /// </summary>
+    private void RepairPostItColours()
+    {
+        PostItColours ??= PostItColour.CreateDefaultPalette();
+        PostItColours.RemoveAll(paletteColour => paletteColour == null || PostItColour.NormalizeHex(paletteColour.Hex) == null);
+
+        var seenColourIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var paletteColour in PostItColours)
+        {
+            // Ids must be unique, because notes find their colour by id.
+            if (string.IsNullOrWhiteSpace(paletteColour.Id) || !seenColourIds.Add(paletteColour.Id))
+            {
+                paletteColour.Id = PostItColour.NewId();
+                seenColourIds.Add(paletteColour.Id);
+            }
+            paletteColour.Hex = PostItColour.NormalizeHex(paletteColour.Hex)!;
+            paletteColour.Name = string.IsNullOrWhiteSpace(paletteColour.Name) ? paletteColour.Hex : paletteColour.Name.Trim();
+            paletteColour.Category = (paletteColour.Category ?? string.Empty).Trim();
         }
     }
 

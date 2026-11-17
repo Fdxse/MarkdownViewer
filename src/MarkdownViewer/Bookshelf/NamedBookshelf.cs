@@ -91,6 +91,16 @@ public class NamedBookshelf
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, PostItNotePlacement>? PostItNotePlacements { get; set; }
 
+    /// <summary>
+    /// For a post-it board: the colour of each note that is not the standard yellow, as the id of a colour in
+    /// the palette (<see cref="MarkdownViewer.Macros.AppSettings.PostItColours"/>), by the file's display name.
+    /// A note that is not listed, or whose colour was removed from the palette, is the standard yellow.
+    /// Null until the user gives a note a colour, so older settings files need no change.
+    /// </summary>
+    // Left out of the settings file until the user colours a note.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, string>? PostItNoteColourIds { get; set; }
+
     /// <summary>True if this shelf lists a folder instead of files the user added.</summary>
     [JsonIgnore]
     public bool IsFolderShelf => !string.IsNullOrWhiteSpace(FolderPath);
@@ -258,6 +268,7 @@ public class NamedBookshelf
         IsPostItBoard = IsPostItBoard,
         PostItNoteOrder = PostItNoteOrder,
         PostItNotePlacements = PostItNotePlacements,
+        PostItNoteColourIds = PostItNoteColourIds,
     };
 
     /// <summary>The shelf name, which is what the drop-down shows (folder, post-it and query shelves are marked as such).</summary>
