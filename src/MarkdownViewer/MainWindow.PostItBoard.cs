@@ -171,7 +171,7 @@ public partial class MainWindow
 
         currentBookshelf.IsPostItBoard = !currentBookshelf.IsPostItBoard;
         SaveSettingsOrWarn();
-        // Redraws the drop-down (its "(post-its)" label), restarts the folder watcher and shows or hides the board.
+        // Redraws the books and the shelf title (its "(post-its)" label), restarts the folder watcher and shows or hides the board.
         ShowBookshelf(currentBookshelf);
     }
 

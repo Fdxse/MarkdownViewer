@@ -34,7 +34,7 @@ public partial class MainWindow
 
         // The Standard shelf is always the one shown when the app starts.
         currentBookshelf = appSettings.StandardBookshelf;
-        RefreshShelfChooser();
+        RefreshShelfSpines();
         UpdateShelfEditingControls();
         WatchCurrentShelfFolder();
 

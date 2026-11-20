@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace MarkdownViewer.Bookshelf;
 
-/// <summary>The shelves the app adds by itself at the end of the drop-down; they are never stored in the settings file.</summary>
+/// <summary>The shelves the app adds by itself at the end of the bookshelf; they are never stored in the settings file.</summary>
 public enum BuiltInShelfKind
 {
     /// <summary>A shelf the user made (or Standard).</summary>
@@ -35,7 +35,7 @@ public class NamedBookshelf
     /// <summary>Name of the shelf that always exists, is shown at startup and cannot be renamed or deleted.</summary>
     public const string StandardShelfName = "Standard";
 
-    /// <summary>Name shown in the shelf drop-down. Unique among the shelves (ignoring upper/lower case).</summary>
+    /// <summary>Name of the shelf (shown on its book unless it has a spine text of its own). Unique among the shelves (ignoring upper/lower case).</summary>
     public string Name { get; set; } = StandardShelfName;
 
     /// <summary>
@@ -100,6 +100,29 @@ public class NamedBookshelf
     // Left out of the settings file until the user colours a note.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, string>? PostItNoteColourIds { get; set; }
+
+    /// <summary>
+    /// Background colour of the shelf's book spine in the bookshelf, as "#RRGGBB". Null in settings files from before
+    /// the spines existed; <see cref="MarkdownViewer.Macros.AppSettings.FillMissingSpineSettings"/> then gives it one
+    /// of <see cref="ShelfSpine.DefaultSpineColours"/>.
+    /// </summary>
+    public string? SpineColour { get; set; }
+
+    /// <summary>Text written on the shelf's book spine. Null or empty means the shelf name is shown.</summary>
+    // Left out of the settings file until the user types a spine text of their own.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SpineText { get; set; }
+
+    /// <summary>
+    /// Order number of the shelf's book spine: spines are shown from the lowest number (left) to the highest (right),
+    /// shelves with the same number by name. Null in settings files from before the spines existed;
+    /// <see cref="MarkdownViewer.Macros.AppSettings.FillMissingSpineSettings"/> then numbers them 10, 20, 30... in their old order.
+    /// </summary>
+    public int? SpineOrder { get; set; }
+
+    /// <summary>The text on the spine: the spine text if the user set one, otherwise the shelf name.</summary>
+    [JsonIgnore]
+    public string SpineDisplayText => string.IsNullOrWhiteSpace(SpineText) ? Name : SpineText.Trim();
 
     /// <summary>True if this shelf lists a folder instead of files the user added.</summary>
     [JsonIgnore]
@@ -269,9 +292,12 @@ public class NamedBookshelf
         PostItNoteOrder = PostItNoteOrder,
         PostItNotePlacements = PostItNotePlacements,
         PostItNoteColourIds = PostItNoteColourIds,
+        SpineColour = SpineColour,
+        SpineText = SpineText,
+        SpineOrder = SpineOrder,
     };
 
-    /// <summary>The shelf name, which is what the drop-down shows (folder, post-it and query shelves are marked as such).</summary>
+    /// <summary>The shelf name, as shown in the book tooltips and the shelf title (folder, post-it and query shelves are marked as such).</summary>
     public override string ToString()
     {
         // The built-in shelves show their plain name; the Trash also says how much is in it.
