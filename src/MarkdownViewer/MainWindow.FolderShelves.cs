@@ -167,15 +167,15 @@ public partial class MainWindow
         // The Trash has its own right-click menu (Restore, Delete for good...).
         BookshelfList.ContextMenu = currentBookshelf.IsTrashShelf ? trashContextMenu : normalBookshelfContextMenu;
 
-        // The drop-down's tooltip says which folder a folder shelf shows.
-        ShelfChooser.ToolTip = currentBookshelf.IsTrashShelf
+        // The shelf title's tooltip says which folder a folder shelf shows.
+        CurrentShelfTitle.ToolTip = currentBookshelf.IsTrashShelf
             ? $"Things moved to the trash. They go to the Windows Recycle Bin after {appSettings.TrashKeepDays} days ({trashBin.TrashFolderPath})"
             : currentBookshelf.IsArchiveShelf
             ? $"Archived files: the Archive folder {currentBookshelf.FolderPath}"
             : currentBookshelf.IsFolderShelf
             ? (currentBookshelf.IsPostItBoard ? "Post-it board: " : string.Empty)
                 + $"Shows the Markdown files in {currentBookshelf.FolderPath}" + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
-            : currentBookshelf.IsQueryShelf ? "A bookshelf of saved SQL Server queries" : "Choose a bookshelf";
+            : currentBookshelf.IsQueryShelf ? "A bookshelf of saved SQL Server queries" : "Click a book above to show another bookshelf";
     }
 
     /// <summary>

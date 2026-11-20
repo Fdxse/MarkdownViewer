@@ -13,6 +13,39 @@
         Activated="Window_Activated"
         Closing="Window_Closing">
 
+    <Window.Resources>
+        <!--
+            A book spine in the bookshelf: a plain coloured block with slightly rounded top corners.
+            The content (bands and the rotated text) is built in code (MainWindow.ShelfSpines.cs).
+        -->
+        <Style x:Key="ShelfSpineButtonStyle" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SpineBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3,3,1,1">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <!-- Hovering or keyboard focus brightens the book a little, so it is clear it can be clicked -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SpineBorder" Property="Opacity" Value="0.85" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="SpineBorder" Property="Opacity" Value="0.85" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <!-- Keyboard shortcuts and menu commands are routed through these bindings. -->
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.New" Executed="NewCommand_Executed" />
@@ -131,8 +164,23 @@
                     <RowDefinition Height="*" MinHeight="80" />
                 </Grid.RowDefinitions>
 
-                <!-- Bookshelf header: shelf drop-down, shelf menu, and add/remove buttons -->
-                <DockPanel Grid.Row="0" Margin="8,6,6,4">
+                <!-- Bookshelf header: the books (one per shelf), then the shown shelf's name, the shelf menu and add/remove buttons -->
+                <StackPanel Grid.Row="0">
+                <!--
+                    The bookshelf: every shelf is a tall, thin book. Click a book to show that shelf; right-click it to set its
+                    colour, text and order number. Books are ordered by order number (left to right) and wrap onto more planks.
+                    Filled in code (MainWindow.ShelfSpines.cs).
+                -->
+                <Border Background="#EFE6D6" BorderBrush="#C9B79C" BorderThickness="0,0,0,1" Padding="6,6,6,4">
+                    <ItemsControl x:Name="ShelfSpinePanel" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </Border>
+                <DockPanel Margin="8,6,6,4">
                     <Button x:Name="RemoveFilesButton" DockPanel.Dock="Right" Content="Remove" Padding="6,1" Margin="4,0,0,0"
                             ToolTip="Remove the selected files from this bookshelf (the files themselves are not deleted)"
                             Click="RemoveFromBookshelfButton_Click" />
@@ -141,7 +189,7 @@
                             Click="AddFilesToBookshelfButton_Click" />
                     <!-- Opens a menu to create, rename or delete bookshelves -->
                     <Button x:Name="ShelfMenuButton" DockPanel.Dock="Right" Content="⋯" Padding="6,1" Margin="4,0,4,0"
-                            ToolTip="New, rename or delete bookshelves"
+                            ToolTip="New, rename, delete or colour bookshelves"
                             Click="ShelfMenuButton_Click">
                         <Button.ContextMenu>
                             <ContextMenu>
@@ -154,6 +202,8 @@
                                           ToolTip="A folder bookshelf whose Markdown files are shown as yellow post-it notes instead of one document at a time" />
                                 <Separator />
                                 <MenuItem Header="_Rename this bookshelf..." Tag="RenameShelf" Click="RenameShelfMenuItem_Click" />
+                                <MenuItem Header="_Book colour, text and order..." Tag="EditSpine" Click="EditShelfSpineMenuItem_Click"
+                                          ToolTip="Set this bookshelf's book colour, the text on the book and its order number (you can also right-click the book)" />
                                 <MenuItem Header="_Delete this bookshelf..." Tag="DeleteShelf" Click="DeleteShelfMenuItem_Click"
                                           ToolTip="Move this bookshelf to the trash (the files themselves are not touched)" />
                                 <MenuItem Header="_Empty the trash..." Tag="EmptyTrash" Click="EmptyTrashMenuItem_Click"
@@ -167,13 +217,13 @@
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>
-                    <!-- Which bookshelf is shown. Standard is first and is shown at startup. -->
-                    <ComboBox x:Name="ShelfChooser"
-                              FontWeight="SemiBold"
-                              VerticalContentAlignment="Center"
-                              ToolTip="Choose a bookshelf"
-                              SelectionChanged="ShelfChooser_SelectionChanged" />
+                    <!-- The name of the shown bookshelf (pick another one by clicking its book above). Standard is shown at startup. -->
+                    <TextBlock x:Name="CurrentShelfTitle"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
                 </DockPanel>
+                </StackPanel>
 
                 <!-- The list of files. Click a file to open it; drag it up or down to reorder; drop files here to add them. -->
                 <Grid Grid.Row="1">

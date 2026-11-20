@@ -15,7 +15,7 @@ namespace MarkdownViewer;
 /// Trash and archive.
 /// <list type="bullet">
 /// <item>Trash: "Move to trash" (Ctrl+Del) moves files into the app's own Trash folder next to the exe. Queries and
-/// deleted bookshelves go there too. The Trash shelf at the end of the drop-down lists it all, with Restore (back where
+/// deleted bookshelves go there too. The Trash shelf at the end of the bookshelf lists it all, with Restore (back where
 /// it came from, and back on its shelves) and Delete for good. After <see cref="Macros.AppSettings.TrashKeepDays"/>
 /// days (30 by default) items are moved on to the Windows Recycle Bin.</item>
 /// <item>Archive: "Archive" moves a finished file into the Archive folder next to the exe (in a subfolder named after
@@ -37,7 +37,7 @@ public partial class MainWindow
     /// <summary>Start of the made-up path of a trashed query or bookshelf in the Trash list (they have no file).</summary>
     private const string TrashEntryPathPrefix = "trash:";
 
-    /// <summary>Name of the Trash shelf in the drop-down.</summary>
+    /// <summary>Name of the Trash shelf (and its book).</summary>
     private const string TrashShelfName = "Trash";
 
     /// <summary>Text shown in the Trash list while it is empty.</summary>
@@ -59,7 +59,7 @@ public partial class MainWindow
     /// <summary>The Archive shelf: a folder shelf on the Archive folder. It is in the bookshelf list (so search, Zip all and the properties panel see it) but never saved.</summary>
     private NamedBookshelf archiveShelf = null!;
 
-    /// <summary>The Trash shelf. Not in the bookshelf list (its files must not be searched or backed up), only in the drop-down.</summary>
+    /// <summary>The Trash shelf. Not in the bookshelf list (its files must not be searched or backed up), only as a book in the bookshelf.</summary>
     private NamedBookshelf trashShelf = null!;
 
     /// <summary>The file list's normal context menu (from the XAML), swapped for <see cref="trashContextMenu"/> while the Trash is shown.</summary>
@@ -104,7 +104,7 @@ public partial class MainWindow
 
     /// <summary>
     /// A shelf the user made earlier with the name "Archive" or "Trash" gets "(my shelf)" added to its name,
-    /// so the drop-down never shows two shelves with the same name.
+    /// so the bookshelf never shows two shelves with the same name.
     /// </summary>
     private void RenameShelvesNamedLikeBuiltInShelves()
     {
@@ -137,10 +137,15 @@ public partial class MainWindow
         return candidateName;
     }
 
-    /// <summary>The shelves for the drop-down: the user's shelves (Standard first), then Archive and Trash at the end.</summary>
-    private List<NamedBookshelf> GetShelvesForChooser()
+    /// <summary>
+    /// The shelves shown as books in the bookshelf: the user's shelves in order-number order (see
+    /// <see cref="ShelfSpine.SortBySpineOrder"/>), then Archive and Trash at the end.
+    /// </summary>
+    private List<NamedBookshelf> GetShelvesForBookshelf()
     {
-        var chooserShelves = appSettings.Bookshelves.Where(bookshelf => !bookshelf.IsBuiltInShelf).ToList();
+        // Shelves made since the settings were loaded get a colour and an order number first.
+        appSettings.FillMissingSpineSettings();
+        var chooserShelves = ShelfSpine.SortBySpineOrder(appSettings.Bookshelves.Where(bookshelf => !bookshelf.IsBuiltInShelf));
         chooserShelves.Add(archiveShelf);
         chooserShelves.Add(trashShelf);
         return chooserShelves;
@@ -168,14 +173,14 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// After anything was moved to or from the trash or the archive: saves the bookshelves, refreshes the drop-down
+    /// After anything was moved to or from the trash or the archive: saves the bookshelves, refreshes the books
     /// (the Trash shows a count), the list, a post-it board and the properties, and brings the search index up to date.
     /// </summary>
     private void RefreshAfterTrashOrArchiveChange()
     {
         RebuildTrashShelfEntries();
         SaveSettingsOrWarn();
-        RefreshShelfChooser();
+        RefreshShelfSpines();
         RefreshBookshelfList();
         RefreshPostItBoardIfChanged();
         UpdatePropertiesPanel();
@@ -653,7 +658,7 @@ public partial class MainWindow
         }
 
         RebuildTrashShelfEntries();
-        RefreshShelfChooser();
+        RefreshShelfSpines();
         if (currentBookshelf.IsTrashShelf)
         {
             ShowBookshelfEntries();

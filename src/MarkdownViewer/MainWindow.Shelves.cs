@@ -7,8 +7,8 @@ using MarkdownViewer.Todo;
 namespace MarkdownViewer;
 
 /// <summary>
-/// Several named bookshelves (e.g. "Standard", "Documentation", "Post-its"). A drop-down in the
-/// bookshelf panel switches between them; the "⋯" button creates, renames and deletes them.
+/// Several named bookshelves (e.g. "Standard", "Documentation", "Post-its"). Each is a book in the bookshelf at the
+/// top of the panel; clicking a book switches to it. The "⋯" button creates, renames and deletes them.
 /// The Standard shelf always exists and is the one shown when the app starts.
 /// </summary>
 public partial class MainWindow
@@ -37,52 +37,21 @@ public partial class MainWindow
     /// <summary>The shelf whose files are listed. Set in <see cref="InitializeBookshelf"/> before anything else uses it.</summary>
     private NamedBookshelf currentBookshelf = null!;
 
-    /// <summary>Set while the drop-down is filled by code, so that does not count as the user choosing a shelf.</summary>
-    private bool isRefreshingShelfChooser;
-
     // ------------------------------------------------------------------
-    // Switching shelves
+    // Switching shelves (the books themselves are drawn in MainWindow.ShelfSpines.cs)
     // ------------------------------------------------------------------
-
-    /// <summary>
-    /// Fills the shelf drop-down (Standard first, then the others in creation order, then Archive and Trash)
-    /// and selects the shown shelf.
-    /// </summary>
-    private void RefreshShelfChooser()
-    {
-        isRefreshingShelfChooser = true;
-        try
-        {
-            ShelfChooser.ItemsSource = GetShelvesForChooser();
-            ShelfChooser.SelectedItem = currentBookshelf;
-        }
-        finally
-        {
-            isRefreshingShelfChooser = false;
-        }
-    }
 
     /// <summary>Shows another shelf: its files in the list, and the properties updated (they say which shelves the open file is on).</summary>
     private void ShowBookshelf(NamedBookshelf shelfToShow)
     {
         currentBookshelf = shelfToShow;
-        RefreshShelfChooser();
+        RefreshShelfSpines();
         RefreshBookshelfList();
         UpdateShelfEditingControls();
         WatchCurrentShelfFolder();
         // A post-it board shows its notes in the document area; any other shelf shows the open document.
         ShowOrHidePostItBoardForCurrentShelf();
         UpdatePropertiesPanel();
-    }
-
-    /// <summary>The user picked a shelf in the drop-down.</summary>
-    private void ShelfChooser_SelectionChanged(object sender, SelectionChangedEventArgs selectionDetails)
-    {
-        if (isRefreshingShelfChooser || ShelfChooser.SelectedItem is not NamedBookshelf chosenShelf || ReferenceEquals(chosenShelf, currentBookshelf))
-        {
-            return;
-        }
-        ShowBookshelf(chosenShelf);
     }
 
     // ------------------------------------------------------------------
@@ -139,7 +108,12 @@ public partial class MainWindow
 
         foreach (var shelfMenuItem in shelfMenu.Items.OfType<MenuItem>())
         {
-            if (shelfMenuItem.Tag is RenameShelfMenuTag or DeleteShelfMenuTag)
+            if (shelfMenuItem.Tag is EditSpineMenuTag)
+            {
+                // Every shelf the user has (Standard too) has its own book; Archive and Trash have fixed books.
+                shelfMenuItem.IsEnabled = !currentBookshelf.IsBuiltInShelf;
+            }
+            else if (shelfMenuItem.Tag is RenameShelfMenuTag or DeleteShelfMenuTag)
             {
                 // Standard, Archive and Trash always exist under their own names.
                 shelfMenuItem.IsEnabled = !currentBookshelf.IsStandardShelf && !currentBookshelf.IsBuiltInShelf;

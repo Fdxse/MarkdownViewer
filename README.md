@@ -26,8 +26,11 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   (or use Alt+Up / Alt+Down); right-click → *Sort by name* puts it back in alphabetical order.
   Click a file to open it; right-click for *Show in folder*, *Copy path* and *Remove* (the file itself is never deleted).
   Moved or deleted files are greyed out. The bookshelf is stored in `%APPDATA%\MarkdownViewer\settings.json`.
-- **Several bookshelves**: the drop-down at the top of the panel switches between shelves, and the **⋯** button
-  creates, renames or deletes them (e.g. *Documentation*, *Post-its*). The **Standard** shelf always exists and is
+- **Several bookshelves**: the top of the panel is a bookshelf where every shelf is a tall, thin book; click a book to
+  switch to that shelf. Right-click a book (or ⋯ → *Book colour, text and order...*) to set its colour, the text on it
+  and its order number (lowest number on the left; existing shelves are numbered 10, 20, 30... so you can slot one in
+  between with e.g. 15). Archive and Trash are always the last books. The **⋯** button
+  creates, renames or deletes shelves (e.g. *Documentation*, *Post-its*). The **Standard** shelf always exists and is
   the one shown when the app starts. A file can be on several shelves: right-click → *Add to bookshelf* or
   *Move to bookshelf*. Each shelf keeps its own order. Deleting a shelf moves it to the Trash and never deletes the files.
 - **Folder bookshelves** (⋯ → *New folder bookshelf...*): pick a folder and the shelf always lists every Markdown file

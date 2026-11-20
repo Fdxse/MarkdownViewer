@@ -196,6 +196,44 @@ public class AppSettings
                 RepairQueryEntries(bookshelf);
             }
         }
+
+        // Settings from before the book spines: give every shelf a colour and an order number (keeping the old order).
+        FillMissingSpineSettings();
+    }
+
+    /// <summary>
+    /// Gives every shelf without a spine colour or order number one, so the bookshelf can show it as a book.
+    /// Shelves without an order number are numbered after the highest existing number, in steps of
+    /// <see cref="ShelfSpine.OrderNumberStep"/> and in their list order (so older settings files keep the order the
+    /// shelf drop-down had: Standard first, then the others in creation order). Shelves without a colour get the next
+    /// colour of <see cref="ShelfSpine.DefaultSpineColours"/>. Invalid colours are replaced the same way.
+    /// Safe to call at any time; shelves that already have both are not touched.
+    /// </summary>
+    public void FillMissingSpineSettings()
+    {
+        var userShelves = Bookshelves.Where(bookshelf => !bookshelf.IsBuiltInShelf).ToList();
+        int highestOrderNumber = userShelves.Max(bookshelf => bookshelf.SpineOrder) ?? 0;
+
+        for (int shelfPosition = 0; shelfPosition < userShelves.Count; shelfPosition++)
+        {
+            var bookshelf = userShelves[shelfPosition];
+
+            if (bookshelf.SpineOrder == null)
+            {
+                highestOrderNumber += ShelfSpine.OrderNumberStep;
+                bookshelf.SpineOrder = highestOrderNumber;
+            }
+
+            // Keep a valid colour (cleaned up to "#RRGGBB"); otherwise hand out the default colours in turn by position.
+            bookshelf.SpineColour = PostItColour.NormalizeHex(bookshelf.SpineColour)
+                ?? ShelfSpine.DefaultSpineColours[shelfPosition % ShelfSpine.DefaultSpineColours.Length];
+
+            // An empty spine text means "show the shelf name"; store that as no text at all.
+            if (string.IsNullOrWhiteSpace(bookshelf.SpineText))
+            {
+                bookshelf.SpineText = null;
+            }
+        }
     }
 
     /// <summary>
@@ -260,6 +298,8 @@ public class AppSettings
     {
         // Folder shelves are saved without their files: those are read from the folder each time.
         // The Archive shelf is added by the app at every start, so it is not saved at all.
+        // Shelves made since the last load (new, restored from the trash...) get their spine colour and order number here at the latest.
+        FillMissingSpineSettings();
         var settingsToWrite = (AppSettings)MemberwiseClone();
         settingsToWrite.Bookshelves = Bookshelves
             .Where(bookshelf => !bookshelf.IsBuiltInShelf)
