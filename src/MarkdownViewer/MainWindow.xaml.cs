@@ -845,7 +845,8 @@ public partial class MainWindow : Window
 
         // A separate document is needed: the one on screen is owned by the viewer.
         string? documentFolder = currentFilePath != null ? Path.GetDirectoryName(currentFilePath) : null;
-        var printRenderer = new MarkdownFlowDocumentRenderer(documentFolder, (_, _) => { });
+        // No code-block "Copy" buttons on paper.
+        var printRenderer = new MarkdownFlowDocumentRenderer(documentFolder, (_, _) => { }) { ShowCodeCopyButtons = false };
         var printDocument = printRenderer.Render(MarkdownEditor.Text);
 
         // Fit the document to the printable page with a single column.

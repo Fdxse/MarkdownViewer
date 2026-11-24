@@ -130,6 +130,8 @@ Supported Markdown: CommonMark plus tables, task lists, strikethrough, footnotes
 **Code coloring**: fenced code blocks with a language (```` ```csharp ````, `cs`, `sql`, `json`, `xml`, `html`, `js`, `ts`,
 `powershell`, `python`, `css`, `vb`, `fsharp`, `cpp`, `java`, `php` and a few more) get syntax colors. Other languages
 and blocks without a language are shown as plain code.
+**Copy code**: every code block has a header with its language and a **Copy** button that puts the block's code
+on the clipboard (shows "Copied ✓" for a moment). Not shown when printing or on post-it notes.
 **Mermaid diagrams**: a ```` ```mermaid ```` code block is drawn as a diagram (flowcharts, sequence, class, state, ER,
 Gantt, pie, mindmaps and the rest of Mermaid). This uses the Microsoft Edge WebView2 Runtime that comes with
 Windows 10 and 11, started invisibly only when a document has a diagram. mermaid.js is built into the exe, so it

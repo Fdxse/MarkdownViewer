@@ -72,6 +72,15 @@ public sealed class MarkdownFlowDocumentRenderer
     /// </summary>
     private readonly Action<int, bool>? taskToggleHandler;
 
+    /// <summary>
+    /// When true (the default), every code block gets a header bar with a "Copy" button that puts the block's
+    /// code on the clipboard. Turned off for printing and post-it notes, where a button makes no sense.
+    /// </summary>
+    public bool ShowCodeCopyButtons { get; init; } = true;
+
+    /// <summary>How long the "Copied" confirmation stays on a copy button before it goes back to "Copy".</summary>
+    private static readonly TimeSpan CopiedFeedbackDuration = TimeSpan.FromSeconds(1.5);
+
     /// <summary>Source line (0-based) of the paragraph being rendered, so a task check box knows which line it belongs to.</summary>
     private int currentParagraphLineIndex;
 
@@ -161,14 +170,14 @@ public sealed class MarkdownFlowDocumentRenderer
 
             // Must come before CodeBlock: math blocks are a special kind of fenced code block.
             case MathBlock mathBlock:
-                return RenderCodeBlock(mathBlock);
+                return RenderCodeBlockWithCopyButton(mathBlock);
 
             // ```mermaid blocks become diagrams; they fall back to the plain code if drawing fails.
             case FencedCodeBlock fencedCodeBlock when IsMermaidBlock(fencedCodeBlock):
                 return RenderMermaidBlock(fencedCodeBlock);
 
             case CodeBlock codeBlock:
-                return RenderCodeBlock(codeBlock);
+                return RenderCodeBlockWithCopyButton(codeBlock);
 
             case QuoteBlock quoteBlock:
                 return RenderQuote(quoteBlock);
@@ -312,6 +321,117 @@ public sealed class MarkdownFlowDocumentRenderer
         }
 
         return codeParagraph;
+    }
+
+    /// <summary>
+    /// Renders a code block with a slim header bar on top: the language name (if any) on the left and a "Copy"
+    /// button on the right that copies the block's raw code to the clipboard. Header and code share one border,
+    /// so they look like a single box. Without copy buttons (printing, post-its) this is just the code block.
+    /// </summary>
+    private WpfBlock RenderCodeBlockWithCopyButton(CodeBlock codeBlock)
+    {
+        var codeParagraph = RenderCodeBlock(codeBlock);
+        if (!ShowCodeCopyButtons)
+        {
+            return codeParagraph;
+        }
+
+        // The exact source text of the block. Windows line endings, so it pastes cleanly into any Windows program.
+        string rawCodeText = string.Join(Environment.NewLine, codeBlock.Lines.Lines
+            .Take(codeBlock.Lines.Count)
+            .Select(codeLine => codeLine.Slice.ToString()));
+
+        // Label on the left: the fence language ("csharp", "sql" ...), "math" for $$ blocks, nothing for indented code.
+        string languageLabel = codeBlock switch
+        {
+            MathBlock => "math",
+            FencedCodeBlock fencedCodeBlock => fencedCodeBlock.Info?.Trim() ?? string.Empty,
+            _ => string.Empty,
+        };
+
+        var languageTextBlock = new TextBlock
+        {
+            Text = languageLabel,
+            FontFamily = CodeFontFamily,
+            FontSize = 12,
+            Foreground = DocumentTheme.MutedTextBrush,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var copyButton = CreateCodeCopyButton(rawCodeText);
+
+        // DockPanel: button docked right, the label fills the rest.
+        var headerPanel = new DockPanel { LastChildFill = true };
+        DockPanel.SetDock(copyButton, Dock.Right);
+        headerPanel.Children.Add(copyButton);
+        headerPanel.Children.Add(languageTextBlock);
+
+        var headerContainer = new BlockUIContainer(headerPanel)
+        {
+            Background = DocumentTheme.CodeBackgroundBrush,
+            BorderBrush = DocumentTheme.BorderBrush,
+            BorderThickness = new Thickness(1, 1, 1, 0), // no bottom line: the code continues right below
+            Padding = new Thickness(14, 4, 6, 0),
+            Margin = new Thickness(0),
+        };
+
+        // The code paragraph closes the box: no top border, and its own bottom margin moves to the section.
+        codeParagraph.BorderThickness = new Thickness(1, 0, 1, 1);
+        codeParagraph.Padding = new Thickness(14, 2, 14, 10);
+        codeParagraph.Margin = new Thickness(0);
+
+        var codeBlockSection = new Section { Margin = new Thickness(0, 0, 0, 14) };
+        codeBlockSection.Blocks.Add(headerContainer);
+        codeBlockSection.Blocks.Add(codeParagraph);
+        return codeBlockSection;
+    }
+
+    /// <summary>
+    /// Creates the small "Copy" button of a code block. Clicking it puts <paramref name="codeTextToCopy"/> on the
+    /// clipboard and shows "Copied ✓" for a moment (or "Copy failed" if another program holds the clipboard).
+    /// </summary>
+    private static Button CreateCodeCopyButton(string codeTextToCopy)
+    {
+        const string normalCaption = "Copy";
+
+        var copyButton = new Button
+        {
+            Content = normalCaption,
+            FontSize = 12,
+            Padding = new Thickness(8, 1, 8, 1),
+            Margin = new Thickness(8, 0, 0, 0),
+            Cursor = System.Windows.Input.Cursors.Hand,
+            ToolTip = "Copy the code in this block to the clipboard",
+            Focusable = false, // keeps keyboard focus (and Ctrl+F etc.) in the document
+        };
+
+        // One timer per button, restarted on every click, that puts the caption back to "Copy".
+        var resetCaptionTimer = new System.Windows.Threading.DispatcherTimer { Interval = CopiedFeedbackDuration };
+        resetCaptionTimer.Tick += (_, _) =>
+        {
+            resetCaptionTimer.Stop();
+            copyButton.Content = normalCaption;
+        };
+
+        copyButton.Click += (_, _) =>
+        {
+            try
+            {
+                // SetDataObject with copy=true keeps the text on the clipboard after the app closes.
+                Clipboard.SetDataObject(codeTextToCopy, true);
+                copyButton.Content = "Copied ✓";
+            }
+            catch (System.Runtime.InteropServices.ExternalException)
+            {
+                // The clipboard is briefly locked by another program (e.g. a clipboard manager).
+                copyButton.Content = "Copy failed";
+            }
+
+            resetCaptionTimer.Stop();
+            resetCaptionTimer.Start();
+        };
+
+        return copyButton;
     }
 
     /// <summary>True for fenced code blocks whose language is "mermaid" (```mermaid).</summary>
