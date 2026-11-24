@@ -287,7 +287,11 @@ public partial class MainWindow
         // The text of the note: the normal document renderer, laid out larger and scaled down onto the note.
         // Links and check boxes are not clickable on a note (the whole note is the click target); open it to use them.
         double textAreaHeight = PostItNoteHeight - PostItFooterHeight;
-        var noteRenderer = new MarkdownFlowDocumentRenderer(Path.GetDirectoryName(bookshelfEntry.FilePath), (_, _) => { });
+        // Code-block "Copy" buttons are left out too, since the whole note is one click/drag target.
+        var noteRenderer = new MarkdownFlowDocumentRenderer(Path.GetDirectoryName(bookshelfEntry.FilePath), (_, _) => { })
+        {
+            ShowCodeCopyButtons = false,
+        };
         FlowDocument noteDocument;
         try
         {
