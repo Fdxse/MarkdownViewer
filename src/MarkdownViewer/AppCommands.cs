@@ -69,4 +69,11 @@ public static class AppCommands
         nameof(GlobalSearch),
         typeof(AppCommands),
         new InputGestureCollection { new KeyGesture(Key.F, ModifierKeys.Control | ModifierKeys.Shift) });
+
+    /// <summary>Opens the table converter: paste a table from Excel, Word, CSV or Markdown and insert it as a Markdown table (Ctrl+Shift+L).</summary>
+    public static readonly RoutedUICommand TableConverter = new(
+        "Table converter",
+        nameof(TableConverter),
+        typeof(AppCommands),
+        new InputGestureCollection { new KeyGesture(Key.L, ModifierKeys.Control | ModifierKeys.Shift) });
 }
