@@ -102,6 +102,15 @@ public class NamedBookshelf
     public Dictionary<string, string>? PostItNoteColourIds { get; set; }
 
     /// <summary>
+    /// For a post-it board: the display names of the notes the user has crossed out (a big red X over the note,
+    /// right-click a note → Cross out). A note that is not listed is not crossed out.
+    /// Null until the user crosses out a note, so older settings files need no change.
+    /// </summary>
+    // Left out of the settings file until the user crosses out a note.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public List<string>? CrossedOutPostItNotes { get; set; }
+
+    /// <summary>
     /// Background colour of the shelf's book spine in the bookshelf, as "#RRGGBB". Null in settings files from before
     /// the spines existed; <see cref="MarkdownViewer.Macros.AppSettings.FillMissingSpineSettings"/> then gives it one
     /// of <see cref="ShelfSpine.DefaultSpineColours"/>.
@@ -292,6 +301,7 @@ public class NamedBookshelf
         PostItNoteOrder = PostItNoteOrder,
         PostItNotePlacements = PostItNotePlacements,
         PostItNoteColourIds = PostItNoteColourIds,
+        CrossedOutPostItNotes = CrossedOutPostItNotes,
         SpineColour = SpineColour,
         SpineText = SpineText,
         SpineOrder = SpineOrder,

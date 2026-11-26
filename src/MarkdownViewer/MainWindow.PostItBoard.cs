@@ -82,6 +82,9 @@ public partial class MainWindow
         /// <summary>The round tilt handle in the corner; it takes the note's colour.</summary>
         public required Border TiltHandle { get; init; }
 
+        /// <summary>The big red X over the note; visible only while the note is crossed out (MainWindow.PostItCrossOut.cs).</summary>
+        public required UIElement CrossOutMark { get; init; }
+
         /// <summary>The note's tilt; its angle is changed when the user tilts the note.</summary>
         public required RotateTransform TiltTransform { get; init; }
 
@@ -394,8 +397,12 @@ public partial class MainWindow
             },
         };
         tiltHandle.MouseLeftButtonDown += PostItTiltHandle_MouseLeftButtonDown;
+        // The big red X for a crossed-out note (MainWindow.PostItCrossOut.cs). It lies over the text but under the
+        // tilt handle, so the note can still be tilted while it is crossed out.
+        var crossOutMark = CreatePostItCrossOutMark();
         var noteLayoutWithTiltHandle = new Grid();
         noteLayoutWithTiltHandle.Children.Add(noteLayout);
+        noteLayoutWithTiltHandle.Children.Add(crossOutMark);
         noteLayoutWithTiltHandle.Children.Add(tiltHandle);
 
         // The tilt: a small one worked out from the name, until the user tilts the note (then the saved tilt is used).
@@ -406,6 +413,7 @@ public partial class MainWindow
             BookshelfEntry = bookshelfEntry,
             TiltTransform = tiltTransform,
             TiltHandle = tiltHandle,
+            CrossOutMark = crossOutMark,
             WasTextCutShort = wasTextCutShort,
             OverflowFade = overflowFade,
             ReadMoreHint = readMoreHint,
@@ -427,6 +435,8 @@ public partial class MainWindow
         tiltHandle.Tag = postItNote;
         // Standard yellow, or the colour the user gave this note (MainWindow.PostItColours.cs).
         PaintPostItNote(postItNote, noteState, GetPostItNoteColour(bookshelfEntry));
+        // Show the red X if the user crossed this note out earlier.
+        ShowOrHidePostItCrossOutMark(noteState, IsPostItNoteCrossedOut(bookshelfEntry));
         postItNote.MouseLeftButtonUp += PostItNote_MouseLeftButtonUp;
         postItNote.MouseLeftButtonDown += PostItNote_MouseLeftButtonDown;
         // Moving and tilting a note (MainWindow.PostItBoardLayout.cs).
@@ -508,6 +518,8 @@ public partial class MainWindow
         noteContextMenu.Items.Add(new Separator());
         // Choosing the note's colour from the palette (MainWindow.PostItColours.cs).
         noteContextMenu.Items.Add(CreatePostItColourMenu(bookshelfEntry, postItNote));
+        // Crossing the note out with a big red X, and back (MainWindow.PostItCrossOut.cs).
+        noteContextMenu.Items.Add(CreatePostItCrossOutMenuItem(bookshelfEntry, postItNote));
         // Tilting, stacking and tidying up the board.
         noteContextMenu.Items.Add(CreatePostItArrangeMenu(postItNote));
         return noteContextMenu;
