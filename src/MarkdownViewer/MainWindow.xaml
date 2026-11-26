@@ -63,6 +63,7 @@
         <CommandBinding Command="local:AppCommands.AddJournalEntry" Executed="AddJournalEntryCommand_Executed" />
         <CommandBinding Command="local:AppCommands.OpenJournal" Executed="OpenJournalCommand_Executed" />
         <CommandBinding Command="local:AppCommands.GlobalSearch" Executed="GlobalSearchCommand_Executed" />
+        <CommandBinding Command="local:AppCommands.TableConverter" Executed="TableConverterCommand_Executed" />
     </Window.CommandBindings>
 
     <!-- Ctrl+Shift+S is not a built-in gesture for Save As, so it is added here. -->
@@ -114,6 +115,9 @@
                           ToolTip="Read every document again and rewrite search-index.json next to the exe" />
             </MenuItem>
             <MenuItem Header="_Tools">
+                <!-- Paste a table from Excel, Word, a web page, CSV or Markdown and insert it as a Markdown table -->
+                <MenuItem Header="_Table converter..." Command="local:AppCommands.TableConverter" InputGestureText="Ctrl+Shift+L" />
+                <Separator />
                 <!-- Text macros such as "@730" that expand while typing in the editor -->
                 <MenuItem Header="_Macros..." Click="MacroSettingsMenuItem_Click" />
                 <!-- The colours (with categories) a post-it note can be given besides the standard yellow -->

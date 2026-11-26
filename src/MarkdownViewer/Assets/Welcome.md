@@ -52,6 +52,9 @@ The file is watched while open: if another program changes it, the view refreshe
 **Journal:** press **Ctrl+J**, write a note and press Ctrl+Enter. It is stamped with the date and time and put at
 the top of `journal.md`; **Ctrl+Shift+J** opens the journal.
 
+**Tables:** press **Ctrl+Shift+L** (Tools → Table converter), paste cells from Excel or Word, CSV or a Markdown
+table, and press Ctrl+Enter to insert it as a Markdown table at the cursor.
+
 **Macros:** in the editor, type `@730` followed by a space and it becomes a link to task 730.
 Change or add macros under **Tools → Macros**.
 

@@ -100,6 +100,13 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   Ctrl+Enter to save) and adds it as `### 2026-11-11 18:07` with the note below, directly above the newest entry, so the
   latest is always on top. Text you put above the entries (the `# Journal` title) stays put, and nothing else is touched.
   Macros expand in the note too. **Ctrl+Shift+J** opens the journal. Global search and Zip all include `journal.md`.
+- **Table converter** (Tools → *Table converter*, **Ctrl+Shift+L**): paste a table copied from Excel, Word, a web page,
+  CSV (comma or semicolon) or Markdown; the format is detected automatically. Options: first row is the header, trim
+  cells, swap rows and columns, line up the columns. A preview shows the table the way the viewer renders it.
+  **Insert into document** (Ctrl+Enter) puts the Markdown table at the cursor with a blank line before and after,
+  in edit mode, unsaved and undoable with Ctrl+Z. Select a table in the editor first and it is loaded into the converter
+  and replaced on insert, which is handy for lining up an existing table. It can also copy the table as Markdown,
+  for Excel/Word (real cells) or as CSV.
 - **Global search** (Search → *Search all documents*, **Ctrl+Shift+F**): searches every file on every bookshelf
   (folder bookshelves included), `todo.md`, `journal.md` and every saved query at once. Results appear as you type, one row per
   document with its bookshelf, folder and up to three matching lines (with line numbers and the words highlighted).
