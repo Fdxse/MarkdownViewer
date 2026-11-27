@@ -204,6 +204,8 @@
                                           ToolTip="A bookshelf of saved SQL Server queries; opening one runs it and shows the result as a document" />
                                 <MenuItem Header="New _post-it board..." Click="NewPostItBoardMenuItem_Click"
                                           ToolTip="A folder bookshelf whose Markdown files are shown as yellow post-it notes instead of one document at a time" />
+                                <MenuItem Header="New _light board..." Click="NewLightBoardMenuItem_Click"
+                                          ToolTip="A folder bookshelf of images, laid out on a board where you can move, scale, rotate, flip and write notes on them" />
                                 <Separator />
                                 <MenuItem Header="_Rename this bookshelf..." Tag="RenameShelf" Click="RenameShelfMenuItem_Click" />
                                 <MenuItem Header="_Book colour, text and order..." Tag="EditSpine" Click="EditShelfSpineMenuItem_Click"
@@ -345,7 +347,8 @@
                         BorderThickness="0,0,0,1"
                         Padding="8,4">
                     <DockPanel>
-                        <Button Content="← Back to the post-it board" Padding="8,2"
+                        <!-- Its text says which kind of board (post-it or light board) it leads back to; set in code -->
+                        <Button x:Name="BackToBoardButton" Content="← Back to the post-it board" Padding="8,2"
                                 ToolTip="Show all the notes on this board again"
                                 Click="BackToPostItBoardButton_Click" />
                         <TextBlock x:Name="BackToPostItBoardText" Margin="10,0,0,0" VerticalAlignment="Center"
@@ -416,6 +419,39 @@
                                       Focusable="False">
                             <!-- Each note has its own place (Canvas.Left/Top), tilt and stacking (Panel.ZIndex). Size set in code to fit the notes. -->
                             <Canvas x:Name="PostItNotesCanvas" Margin="16,4,16,16" Background="Transparent" />
+                        </ScrollViewer>
+                    </DockPanel>
+
+                    <!-- The light board: one image per image file in the board's folder, on a bright "light table". Filled in code (MainWindow.LightBoard.cs).
+                         Images can be moved, scaled (keeping their proportions), rotated, flipped and given a note (MainWindow.LightBoardLayout.cs). -->
+                    <DockPanel x:Name="LightBoardView"
+                               Visibility="Collapsed">
+                        <!-- A soft glow from the middle, like a backlit light table -->
+                        <DockPanel.Background>
+                            <RadialGradientBrush GradientOrigin="0.5,0.4" Center="0.5,0.4" RadiusX="0.8" RadiusY="0.8">
+                                <GradientStop Color="#FFFFFF" Offset="0" />
+                                <GradientStop Color="#EAF0F6" Offset="1" />
+                            </RadialGradientBrush>
+                        </DockPanel.Background>
+                        <!-- Board name, the folder it shows and the Import button; stays at the top while the images scroll -->
+                        <DockPanel DockPanel.Dock="Top" Margin="16,12,16,4">
+                            <Button DockPanel.Dock="Right" VerticalAlignment="Top" Content="Import images..." Padding="10,3"
+                                    ToolTip="Copy image files into this board's folder and put them on the board (you can also drop image files on the board)"
+                                    Click="LightBoardImportButton_Click" />
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock x:Name="LightBoardTitleText" FontSize="20" FontWeight="SemiBold" Foreground="#2C3440" />
+                                <TextBlock x:Name="LightBoardSubtitleText" Margin="0,2,0,4" Foreground="#5A6573" TextWrapping="Wrap" />
+                                <!-- Shown instead of the images while the folder has none -->
+                                <TextBlock x:Name="LightBoardEmptyHint" Margin="0,12" Foreground="#5A6573" TextWrapping="Wrap" Visibility="Collapsed" />
+                            </StackPanel>
+                        </DockPanel>
+                        <!-- The images, scrolling both ways when they are spread out further than the window -->
+                        <ScrollViewer x:Name="LightBoardScroller"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Auto"
+                                      Focusable="False">
+                            <!-- Each image has its own place (Canvas.Left/Top), size, rotation and stacking (Panel.ZIndex). Size set in code to fit the images. -->
+                            <Canvas x:Name="LightBoardCanvas" Margin="16,4,16,16" Background="Transparent" />
                         </ScrollViewer>
                     </DockPanel>
                 </Grid>

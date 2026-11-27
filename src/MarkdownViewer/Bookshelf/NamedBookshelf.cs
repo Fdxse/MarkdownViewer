@@ -18,7 +18,7 @@ public enum BuiltInShelfKind
 
 /// <summary>
 /// One bookshelf: a name (e.g. "Standard", "Documentation", "Post-its") and its files.
-/// There are two kinds:
+/// There are several kinds:
 /// <list type="bullet">
 /// <item>a normal shelf, holding the files the user put on it, in the order the user arranged them;</item>
 /// <item>a folder shelf (<see cref="FolderPath"/> set), which always lists the Markdown files in one folder
@@ -27,6 +27,8 @@ public enum BuiltInShelfKind
 /// the query and shows the result as a Markdown document.</item>
 /// <item>a post-it board (<see cref="IsPostItBoard"/>), which is a folder shelf whose files are also shown as
 /// small yellow notes in the document area instead of one document at a time.</item>
+/// <item>a light board (<see cref="IsLightBoard"/>), which is a folder shelf of image files instead of Markdown files.
+/// Its images lie on a board in the document area, where they can be moved, scaled, rotated, flipped and given a note.</item>
 /// </list>
 /// The same file may be on several shelves.
 /// </summary>
@@ -46,6 +48,12 @@ public class NamedBookshelf
 
     /// <summary>File extensions a folder shelf lists. Plain .txt files are left out on purpose.</summary>
     public static readonly string[] FolderShelfFileExtensions = { ".md", ".markdown", ".mdown", ".mkd", ".mkdn" };
+
+    /// <summary>
+    /// File extensions a light board lists: the image formats WPF can show. (WebP needs the Windows WebP codec,
+    /// which Windows 10 and 11 normally have; an image that cannot be read gets an error card on the board.)
+    /// </summary>
+    public static readonly string[] LightBoardImageFileExtensions = { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp" };
 
     /// <summary>Most files a folder shelf lists, so picking a huge folder (e.g. a whole drive with subfolders) cannot freeze the app.</summary>
     public const int MaximumFolderShelfFileCount = 5000;
@@ -72,6 +80,24 @@ public class NamedBookshelf
     // Left out of the settings file for the other kinds of shelf.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsPostItBoard { get; set; }
+
+    /// <summary>
+    /// For a folder shelf: true to make it a light board, which lists the image files in the folder (instead of
+    /// its Markdown files) and shows them on a board where they can be moved, scaled, rotated, flipped and noted.
+    /// Never together with <see cref="IsPostItBoard"/>.
+    /// </summary>
+    // Left out of the settings file for the other kinds of shelf.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsLightBoard { get; set; }
+
+    /// <summary>
+    /// For a light board: where each image lies, how big it is, how it is rotated and flipped, how high it is in the
+    /// stack and the note on it, by the image file's display name ("photo.jpg", or "subfolder\photo.jpg").
+    /// Images without an entry are laid out in rows in free spots. Null until the user changes an image.
+    /// </summary>
+    // Left out of the settings file until the user moves, scales, rotates, flips or notes an image.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Dictionary<string, LightBoardImagePlacement>? LightBoardImages { get; set; }
 
     /// <summary>
     /// For a post-it board: the order the user dragged the notes into, as the files' display names
@@ -186,7 +212,7 @@ public class NamedBookshelf
             return Entries.Any(bookshelfEntry => bookshelfEntry.HasPath(filePath));
         }
 
-        if (!HasFolderShelfExtension(filePath))
+        if (!HasListedFileExtension(filePath))
         {
             return false;
         }
@@ -207,6 +233,18 @@ public class NamedBookshelf
     public static bool HasFolderShelfExtension(string filePath)
     {
         return FolderShelfFileExtensions.Contains(Path.GetExtension(filePath), StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>True if the file is an image a light board shows (by its extension).</summary>
+    public static bool HasLightBoardImageExtension(string filePath)
+    {
+        return LightBoardImageFileExtensions.Contains(Path.GetExtension(filePath), StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>True if this folder shelf lists files like this one: images on a light board, Markdown files on any other folder shelf.</summary>
+    public bool HasListedFileExtension(string filePath)
+    {
+        return IsLightBoard ? HasLightBoardImageExtension(filePath) : HasFolderShelfExtension(filePath);
     }
 
     /// <summary>
@@ -235,7 +273,8 @@ public class NamedBookshelf
         {
             foreach (string foundFilePath in Directory.EnumerateFiles(shelfFolder, "*", scanOptions))
             {
-                if (!HasFolderShelfExtension(foundFilePath))
+                // Images on a light board, Markdown files on every other folder shelf.
+                if (!HasListedFileExtension(foundFilePath))
                 {
                     continue;
                 }
@@ -302,6 +341,8 @@ public class NamedBookshelf
         PostItNotePlacements = PostItNotePlacements,
         PostItNoteColourIds = PostItNoteColourIds,
         CrossedOutPostItNotes = CrossedOutPostItNotes,
+        IsLightBoard = IsLightBoard,
+        LightBoardImages = LightBoardImages,
         SpineColour = SpineColour,
         SpineText = SpineText,
         SpineOrder = SpineOrder,
@@ -321,7 +362,9 @@ public class NamedBookshelf
         }
         if (IsFolderShelf)
         {
-            return IsPostItBoard ? $"{Name} (post-its)" : $"{Name} (folder)";
+            return IsPostItBoard ? $"{Name} (post-its)"
+                : IsLightBoard ? $"{Name} (light board)"
+                : $"{Name} (folder)";
         }
         return IsQueryShelf ? $"{Name} (queries)" : Name;
     }

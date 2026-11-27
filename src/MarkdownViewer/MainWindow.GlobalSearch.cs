@@ -100,6 +100,12 @@ public partial class MainWindow
         var folderSources = new List<SearchIndexFolderSource>();
         foreach (var bookshelf in appSettings.Bookshelves)
         {
+            // A light board holds images, which have no text to search.
+            if (bookshelf.IsLightBoard)
+            {
+                continue;
+            }
+
             if (bookshelf.IsFolderShelf)
             {
                 folderSources.Add(new SearchIndexFolderSource(bookshelf.Name, bookshelf.FolderPath!, bookshelf.IncludeSubfolders));

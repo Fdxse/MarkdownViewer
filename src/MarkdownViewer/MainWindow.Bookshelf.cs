@@ -375,6 +375,20 @@ public partial class MainWindow
             return;
         }
 
+        // On a light board, clicking an image in the list shows it on the board (on top of the others).
+        if (currentBookshelf.IsLightBoard)
+        {
+            ShowLightBoardImage(bookshelfEntry);
+            return;
+        }
+
+        // An image elsewhere (e.g. in the Trash) is not a Markdown document: open it in the default image program instead.
+        if (NamedBookshelf.HasLightBoardImageExtension(bookshelfEntry.FilePath) && File.Exists(bookshelfEntry.FilePath))
+        {
+            OpenWithDefaultProgram(bookshelfEntry.FilePath);
+            return;
+        }
+
         // Clicking the file that is already open does not read it again; on a post-it board it just brings the document back into view.
         if (currentFilePath != null && bookshelfEntry.HasPath(currentFilePath))
         {
@@ -738,6 +752,13 @@ public partial class MainWindow
         if (currentBookshelf.IsQueryShelf)
         {
             AddNewQueryToCurrentShelf();
+            return;
+        }
+
+        // On a light board it reads "Import..." and copies images onto the board.
+        if (currentBookshelf.IsLightBoard)
+        {
+            ImportImagesToLightBoard();
             return;
         }
 

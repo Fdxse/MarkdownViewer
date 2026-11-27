@@ -183,6 +183,7 @@ public partial class MainWindow
         RefreshShelfSpines();
         RefreshBookshelfList();
         RefreshPostItBoardIfChanged();
+        RefreshLightBoardIfChanged();
         UpdatePropertiesPanel();
         _ = RefreshSearchIndexAsync(forceRereadAllFiles: false);
     }
@@ -269,11 +270,12 @@ public partial class MainWindow
     /// <summary>After the open document was moved into the trash or deleted: shows the welcome page (and the board again on a post-it board).</summary>
     private void CloseRemovedOpenDocument()
     {
-        bool wasBoardShown = isPostItBoardShown;
+        bool wasBoardShown = isPostItBoardShown || isLightBoardShown;
         ShowWelcomePage();
-        if (wasBoardShown || currentBookshelf.IsPostItBoard)
+        if (wasBoardShown || currentBookshelf.IsPostItBoard || currentBookshelf.IsLightBoard)
         {
             ShowOrHidePostItBoardForCurrentShelf();
+            ShowOrHideLightBoardForCurrentShelf();
         }
     }
 
@@ -952,7 +954,9 @@ public partial class MainWindow
         {
             if (Equals(menuItem.Tag, ArchiveFilesMenuTag))
             {
-                menuItem.Visibility = currentBookshelf.IsQueryShelf || currentBookshelf.IsArchiveShelf ? Visibility.Collapsed : Visibility.Visible;
+                // The Archive shelf lists Markdown files only, so images on a light board are not archived (they can be trashed).
+                menuItem.Visibility = currentBookshelf.IsQueryShelf || currentBookshelf.IsArchiveShelf || currentBookshelf.IsLightBoard
+                    ? Visibility.Collapsed : Visibility.Visible;
                 menuItem.IsEnabled = hasSelection;
             }
             else if (Equals(menuItem.Tag, RestoreFromArchiveMenuTag))
