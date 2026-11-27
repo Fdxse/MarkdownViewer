@@ -188,6 +188,12 @@ public class AppSettings
             if (!bookshelf.IsFolderShelf)
             {
                 bookshelf.IsPostItBoard = false;
+                bookshelf.IsLightBoard = false;
+            }
+            // A light board shows images, so it cannot also be a post-it board (the light board wins).
+            if (bookshelf.IsLightBoard)
+            {
+                bookshelf.IsPostItBoard = false;
             }
             // Query shelves hold only queries, other shelves only files.
             bookshelf.Entries.RemoveAll(bookshelfEntry => bookshelfEntry.IsQuery != bookshelf.IsQueryShelf);

@@ -49,8 +49,10 @@ public partial class MainWindow
         RefreshBookshelfList();
         UpdateShelfEditingControls();
         WatchCurrentShelfFolder();
-        // A post-it board shows its notes in the document area; any other shelf shows the open document.
+        // A post-it board shows its notes in the document area, a light board its images; any other shelf shows the open document.
+        // (The post-it board goes first: hiding it shows the document, which a light board then covers again.)
         ShowOrHidePostItBoardForCurrentShelf();
+        ShowOrHideLightBoardForCurrentShelf();
         UpdatePropertiesPanel();
     }
 
@@ -134,8 +136,8 @@ public partial class MainWindow
             }
             else if (shelfMenuItem.Tag is ShowAsPostItBoardMenuTag)
             {
-                // Any folder shelf can be switched between a plain list and a post-it board (not the Archive).
-                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf && !currentBookshelf.IsArchiveShelf;
+                // Any folder shelf can be switched between a plain list and a post-it board (not the Archive, and not a light board of images).
+                shelfMenuItem.IsEnabled = currentBookshelf.IsFolderShelf && !currentBookshelf.IsArchiveShelf && !currentBookshelf.IsLightBoard;
                 shelfMenuItem.IsChecked = currentBookshelf.IsFolderShelf && currentBookshelf.IsPostItBoard;
             }
         }
@@ -245,7 +247,8 @@ public partial class MainWindow
 
             submenu.Items.Clear();
             // Moving would take the files off this shelf, which a folder shelf cannot do.
-            submenu.IsEnabled = hasSelection && !(isMoveSubmenu && currentBookshelf.IsFolderShelf);
+            // Images of a light board are not Markdown documents, so they are not put on other shelves at all.
+            submenu.IsEnabled = hasSelection && !(isMoveSubmenu && currentBookshelf.IsFolderShelf) && !currentBookshelf.IsLightBoard;
 
             if (otherShelves.Count == 0)
             {

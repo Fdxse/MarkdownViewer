@@ -143,31 +143,46 @@ public partial class MainWindow
         UpdateBackToPostItBoardBar();
     }
 
-    /// <summary>Shows the "Back to the post-it board" bar while a post-it board shelf is chosen but a document is shown.</summary>
+    /// <summary>
+    /// Shows the "Back to the board" bar while a post-it board or light board shelf is chosen but a document is shown.
+    /// </summary>
     private void UpdateBackToPostItBoardBar()
     {
         // currentBookshelf is checked for null because a document can be shown before the bookshelf is set up at startup.
-        bool isBoardHiddenBehindDocument = currentBookshelf != null && currentBookshelf.IsPostItBoard && !isPostItBoardShown;
+        bool isPostItBoardHiddenBehindDocument = currentBookshelf != null && currentBookshelf.IsPostItBoard && !isPostItBoardShown;
+        bool isLightBoardHiddenBehindDocument = currentBookshelf != null && currentBookshelf.IsLightBoard && !isLightBoardShown;
+        bool isBoardHiddenBehindDocument = isPostItBoardHiddenBehindDocument || isLightBoardHiddenBehindDocument;
         BackToPostItBoardBar.Visibility = isBoardHiddenBehindDocument ? Visibility.Visible : Visibility.Collapsed;
-        BackToPostItBoardText.Text = isBoardHiddenBehindDocument ? $"Post-it board \"{currentBookshelf!.Name}\"" : string.Empty;
+        BackToBoardButton.Content = isLightBoardHiddenBehindDocument ? "← Back to the light board" : "← Back to the post-it board";
+        BackToPostItBoardText.Text = !isBoardHiddenBehindDocument ? string.Empty
+            : isLightBoardHiddenBehindDocument ? $"Light board \"{currentBookshelf!.Name}\""
+            : $"Post-it board \"{currentBookshelf!.Name}\"";
     }
 
-    /// <summary>The "Back to the post-it board" button above a document.</summary>
+    /// <summary>The "Back to the board" button above a document: shows the post-it board or the light board again.</summary>
     private void BackToPostItBoardButton_Click(object sender, RoutedEventArgs clickDetails)
     {
-        ShowPostItBoard();
+        if (currentBookshelf.IsLightBoard)
+        {
+            ShowLightBoard();
+        }
+        else
+        {
+            ShowPostItBoard();
+        }
     }
 
     /// <summary>Shelf menu → New post-it board: like a new folder bookshelf, but shown as notes.</summary>
     private void NewPostItBoardMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
-        CreateFolderShelf(asPostItBoard: true);
+        CreateFolderShelf(FolderShelfLook.PostItBoard);
     }
 
     /// <summary>Shelf menu → Show as post-it board (folder shelves only): switches between a plain list and a board.</summary>
     private void ShowAsPostItBoardMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
-        if (!currentBookshelf.IsFolderShelf)
+        // A light board shows images, which cannot be post-it notes.
+        if (!currentBookshelf.IsFolderShelf || currentBookshelf.IsLightBoard)
         {
             return;
         }

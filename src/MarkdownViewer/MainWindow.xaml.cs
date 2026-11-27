@@ -173,8 +173,9 @@ public partial class MainWindow : Window
         RenderPreview(keepScrollPosition: false);
         UpdateTitleAndStatus();
         SelectOpenFileInBookshelf();
-        // A document that is opened (from a note, the list, a link or a search) replaces the post-it board on screen.
+        // A document that is opened (from a note, the list, a link or a search) replaces the post-it board (or light board) on screen.
         HidePostItBoard();
+        HideLightBoard();
     }
 
     /// <summary>Shows the built-in welcome page (embedded in the exe) as an untitled document.</summary>
@@ -553,8 +554,9 @@ public partial class MainWindow : Window
 
         if (enableEditing)
         {
-            // The editor sits under the post-it board, so leave the board to edit the open document.
+            // The editor sits under the post-it board (and the light board), so leave the board to edit the open document.
             HidePostItBoard();
+            HideLightBoard();
             MarkdownEditor.Focus();
         }
         else
@@ -738,6 +740,13 @@ public partial class MainWindow : Window
     /// <summary>File → New: starts an empty document in edit mode.</summary>
     private void NewCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails)
     {
+        // On a light board there is no new document to write: Ctrl+N imports images onto the board instead.
+        if (currentBookshelf.IsLightBoard)
+        {
+            ImportImagesToLightBoard();
+            return;
+        }
+
         if (!ConfirmDiscardUnsavedChanges())
         {
             return;
@@ -889,6 +898,12 @@ public partial class MainWindow : Window
         if (dropDetails.Data.GetData(DataFormats.FileDrop) is string[] droppedPaths && droppedPaths.Length > 0)
         {
             dropDetails.Handled = true;
+
+            // Image files dropped while a light board is chosen go onto the board.
+            if (TryDropImagesOnLightBoard(droppedPaths, dropDetails))
+            {
+                return;
+            }
 
             if (IsOverBookshelfPanel(dropDetails))
             {

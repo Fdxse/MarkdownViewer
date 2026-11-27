@@ -13,6 +13,19 @@ namespace MarkdownViewer;
 /// </summary>
 public partial class MainWindow
 {
+    /// <summary>How a new folder shelf shows its folder.</summary>
+    private enum FolderShelfLook
+    {
+        /// <summary>A plain list of the Markdown files.</summary>
+        FileList,
+
+        /// <summary>The Markdown files as post-it notes on a board.</summary>
+        PostItBoard,
+
+        /// <summary>The images in the folder on a light board.</summary>
+        LightBoard,
+    }
+
     /// <summary>Text shown in an empty normal shelf.</summary>
     private const string EmptyShelfHintText =
         "This bookshelf is empty. Click Add..., press Ctrl+D to add the open file, or drop Markdown files (or a folder) here.";
@@ -49,7 +62,9 @@ public partial class MainWindow
 
         BookshelfEmptyHint.Text = currentBookshelf.IsArchiveShelf ? EmptyArchiveHintText
             : folderExists
-            ? $"There are no Markdown files in this folder yet:\n{currentBookshelf.FolderPath}"
+            ? (currentBookshelf.IsLightBoard
+                ? $"There are no images in this folder yet. Click Import... to add some:\n{currentBookshelf.FolderPath}"
+                : $"There are no Markdown files in this folder yet:\n{currentBookshelf.FolderPath}")
             : $"The folder was not found. It may have been moved, renamed or deleted, or its drive is not connected:\n{currentBookshelf.FolderPath}";
 
         var currentFilePaths = currentBookshelf.Entries.Select(bookshelfEntry => bookshelfEntry.FilePath).ToList();
@@ -84,8 +99,8 @@ public partial class MainWindow
             {
                 IncludeSubdirectories = currentBookshelf.IncludeSubfolders,
                 // File and folder names: covers files added, deleted and renamed, and folders renamed or moved.
-                // A post-it board shows the files' text too, so it also listens for files being saved.
-                NotifyFilter = currentBookshelf.IsPostItBoard
+                // A post-it board shows the files' text too (and a light board their pictures), so it also listens for files being saved.
+                NotifyFilter = currentBookshelf.IsPostItBoard || currentBookshelf.IsLightBoard
                     ? NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite
                     : NotifyFilters.FileName | NotifyFilters.DirectoryName,
             };
@@ -136,8 +151,9 @@ public partial class MainWindow
         {
             ShowBookshelfEntries();
         }
-        // The notes on a post-it board are redrawn if a file came, went or was saved.
+        // The notes on a post-it board (or the images on a light board) are redrawn if a file came, went or was saved.
         RefreshPostItBoardIfChanged();
+        RefreshLightBoardIfChanged();
         UpdatePropertiesPanel();
     }
 
@@ -150,14 +166,19 @@ public partial class MainWindow
         bool canEditFiles = currentBookshelf.CanEditEntriesByHand;
         // In the Trash and the Archive the Add button is "Restore"; the Trash's Remove button deletes for good.
         bool isTrashOrArchive = currentBookshelf.IsTrashShelf || currentBookshelf.IsArchiveShelf;
-        AddFilesButton.IsEnabled = canEditFiles || isTrashOrArchive;
+        // On a light board the Add button imports images (copies them into the board's folder).
+        AddFilesButton.IsEnabled = canEditFiles || isTrashOrArchive || currentBookshelf.IsLightBoard;
         RemoveFilesButton.IsEnabled = canEditFiles || currentBookshelf.IsTrashShelf;
 
         // On a query shelf the Add button makes a new query, and Remove moves queries to the trash.
-        AddFilesButton.Content = isTrashOrArchive ? "Restore" : currentBookshelf.IsQueryShelf ? "New..." : "Add...";
+        AddFilesButton.Content = isTrashOrArchive ? "Restore"
+            : currentBookshelf.IsQueryShelf ? "New..."
+            : currentBookshelf.IsLightBoard ? "Import..."
+            : "Add...";
         AddFilesButton.ToolTip = currentBookshelf.IsTrashShelf ? "Put the selected items back where they came from"
             : currentBookshelf.IsArchiveShelf ? "Move the selected files back to where they were archived from"
             : currentBookshelf.IsQueryShelf ? "Add a new SQL Server query to this bookshelf"
+            : currentBookshelf.IsLightBoard ? "Copy images into this light board's folder and put them on the board"
             : "Add Markdown files to this bookshelf";
         RemoveFilesButton.Content = currentBookshelf.IsTrashShelf ? "Delete" : "Remove";
         RemoveFilesButton.ToolTip = currentBookshelf.IsTrashShelf ? "Delete the selected items for good"
@@ -173,8 +194,8 @@ public partial class MainWindow
             : currentBookshelf.IsArchiveShelf
             ? $"Archived files: the Archive folder {currentBookshelf.FolderPath}"
             : currentBookshelf.IsFolderShelf
-            ? (currentBookshelf.IsPostItBoard ? "Post-it board: " : string.Empty)
-                + $"Shows the Markdown files in {currentBookshelf.FolderPath}" + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
+            ? (currentBookshelf.IsPostItBoard ? "Post-it board: " : currentBookshelf.IsLightBoard ? "Light board: " : string.Empty)
+                + (currentBookshelf.IsLightBoard ? "Shows the images in " : "Shows the Markdown files in ") + currentBookshelf.FolderPath + (currentBookshelf.IncludeSubfolders ? " and its subfolders" : string.Empty)
             : currentBookshelf.IsQueryShelf ? "A bookshelf of saved SQL Server queries" : "Click a book above to show another bookshelf";
     }
 
@@ -200,9 +221,14 @@ public partial class MainWindow
             return true;
         }
 
+        // A light board takes images through Import... (or by dropping them on the board).
+        string howToAddText = currentBookshelf.IsLightBoard
+            ? "Use Import... (or drop image files on the board) to put images on it, or switch to another bookshelf."
+            : "Put the file in the folder instead, or switch to another bookshelf.";
+        string listedFilesText = currentBookshelf.IsLightBoard ? "images" : "Markdown files";
         MessageBox.Show(this,
-            $"\"{currentBookshelf.Name}\" shows the Markdown files in a folder, so files cannot be added, removed or reordered here.\n\n" +
-            "Put the file in the folder instead, or switch to another bookshelf.",
+            $"\"{currentBookshelf.Name}\" shows the {listedFilesText} in a folder, so files cannot be added, removed or reordered here.\n\n" +
+            howToAddText,
             "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
         return true;
     }
@@ -214,21 +240,32 @@ public partial class MainWindow
     /// <summary>Shelf menu → New folder bookshelf: picks a folder, asks about subfolders and a name, and shows the new shelf.</summary>
     private void NewFolderShelfMenuItem_Click(object sender, RoutedEventArgs clickDetails)
     {
-        CreateFolderShelf(asPostItBoard: false);
+        CreateFolderShelf(FolderShelfLook.FileList);
     }
 
     /// <summary>
     /// Creates a folder shelf: picks a folder, asks about subfolders and a name, and shows the new shelf.
-    /// With <paramref name="asPostItBoard"/> the shelf shows its files as yellow post-it notes.
+    /// <paramref name="shelfLook"/> says whether it lists its files, shows them as yellow post-it notes, or is a light board of images.
     /// </summary>
-    private void CreateFolderShelf(bool asPostItBoard)
+    private void CreateFolderShelf(FolderShelfLook shelfLook)
     {
-        string shelfKindText = asPostItBoard ? "post-it board" : "folder bookshelf";
+        string shelfKindText = shelfLook switch
+        {
+            FolderShelfLook.PostItBoard => "post-it board",
+            FolderShelfLook.LightBoard => "light board",
+            _ => "folder bookshelf",
+        };
+        // What the shelf shows from the folder.
+        string listedFilesText = shelfLook == FolderShelfLook.LightBoard ? "images" : "Markdown files";
         var folderDialog = new OpenFolderDialog
         {
-            Title = asPostItBoard
-                ? "Choose the folder whose Markdown files are shown as post-it notes"
-                : "Choose the folder whose Markdown files this bookshelf shows",
+            Title = shelfLook switch
+            {
+                FolderShelfLook.PostItBoard => "Choose the folder whose Markdown files are shown as post-it notes",
+                // Imported images are copied here, so an empty (or new) folder is a good choice.
+                FolderShelfLook.LightBoard => "Choose the folder for the light board's images (imported images are copied there)",
+                _ => "Choose the folder whose Markdown files this bookshelf shows",
+            },
             InitialDirectory = currentFilePath != null ? Path.GetDirectoryName(currentFilePath) : null,
         };
         if (folderDialog.ShowDialog(this) != true)
@@ -238,7 +275,7 @@ public partial class MainWindow
         string chosenFolderPath = folderDialog.FolderName;
 
         var subfolderAnswer = MessageBox.Show(this,
-            $"Also show the Markdown files in the subfolders of\n{chosenFolderPath}?\n\n(You can change this later in the ⋯ menu.)",
+            $"Also show the {listedFilesText} in the subfolders of\n{chosenFolderPath}?\n\n(You can change this later in the ⋯ menu.)",
             $"New {shelfKindText}", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         if (subfolderAnswer == MessageBoxResult.Cancel)
         {
@@ -248,7 +285,7 @@ public partial class MainWindow
         // Suggest the folder's own name, e.g. "Documentation" for C:\Projects\Documentation.
         string suggestedName = Path.GetFileName(Path.TrimEndingDirectorySeparator(chosenFolderPath));
         string? newShelfName = AskForShelfName($"New {shelfKindText}",
-            $"Name of the {shelfKindText} that shows the Markdown files in\n{chosenFolderPath}:", suggestedName, shelfBeingRenamed: null);
+            $"Name of the {shelfKindText} that shows the {listedFilesText} in\n{chosenFolderPath}:", suggestedName, shelfBeingRenamed: null);
         if (newShelfName == null)
         {
             return;
@@ -259,7 +296,8 @@ public partial class MainWindow
             Name = newShelfName,
             FolderPath = chosenFolderPath,
             IncludeSubfolders = subfolderAnswer == MessageBoxResult.Yes,
-            IsPostItBoard = asPostItBoard,
+            IsPostItBoard = shelfLook == FolderShelfLook.PostItBoard,
+            IsLightBoard = shelfLook == FolderShelfLook.LightBoard,
         };
         appSettings.Bookshelves.Add(newShelf);
         SaveSettingsOrWarn();
@@ -268,7 +306,7 @@ public partial class MainWindow
         if (newShelf.WasFolderListCutShort)
         {
             MessageBox.Show(this,
-                $"The folder holds more than {NamedBookshelf.MaximumFolderShelfFileCount:N0} Markdown files, so only the first ones are listed.",
+                $"The folder holds more than {NamedBookshelf.MaximumFolderShelfFileCount:N0} {listedFilesText}, so only the first ones are listed.",
                 "Markdown Viewer", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }

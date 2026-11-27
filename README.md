@@ -49,6 +49,23 @@ Grab `MarkdownViewer.exe` from the latest [release](../../releases/latest). Ever
   a hex value (`#RRGGBB`) and a category that says what it means (for example *Blue – Work*). A legend above the
   board shows which colour means which category. The palette is stored in settings.json (`PostItColours`), and each
   board remembers its notes' colours (`PostItNoteColourIds`); notes in a colour that is removed turn yellow again.
+- **Light boards** (⋯ → *New light board...*): a folder bookshelf of **images** instead of Markdown files (png, jpg,
+  gif, bmp, tif, webp), laid out on a bright "light table" in the document area. **Import images...** (the button
+  above the board, *Import...* on the shelf, or **Ctrl+N**) copies pictures into the board's folder; you can also drop
+  image files on the board, and they land where you drop them. Per image:
+  - **move** by dragging it (it comes to the top of the stack);
+  - **scale** with the round handle in its bottom-right corner or **Ctrl + mouse wheel**. The proportions are always
+    kept: only the width is stored and the height follows the picture. Right-click → *Size* has Bigger, Smaller,
+    Default size and Actual size;
+  - **rotate** with the handle in its top-right corner (snaps to straight and quarter turns), **Shift + mouse wheel**,
+    or right-click → *Rotate 90° right/left* / *Straighten*;
+  - **flip** horizontally or vertically (right-click), which mirrors the picture without changing the file;
+  - a **note**: double-click the image (or right-click → *Note...*) to read or write it. The note is not drawn on the
+    image; a small ✎ badge shows that there is one, and hovering shows it in the tooltip.
+
+  Phone photos are turned upright from their EXIF orientation. Everything is saved per board in settings.json
+  (`LightBoardImages`, by file name); the image files themselves are never changed. Right-click → *Line up all images
+  in rows* tidies the board while keeping sizes, rotations, flips and notes.
 - **Query bookshelves** (⋯ → *New query bookshelf...*): a shelf of saved **Microsoft SQL Server** queries instead of files.
   Click **New...** to open a query's settings page (used instead of the editor): name, server, database, Windows login
   or SQL Server login, the SQL, and what it returns:

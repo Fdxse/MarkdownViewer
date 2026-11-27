@@ -17,7 +17,8 @@ public partial class MainWindow
     private void TableConverterCommand_Executed(object sender, ExecutedRoutedEventArgs commandDetails)
     {
         // A query result is generated and the post-it board is not a document, so there the table can only be copied.
-        bool canInsert = currentQueryEntry == null && PostItBoardView.Visibility != Visibility.Visible;
+        bool canInsert = currentQueryEntry == null && PostItBoardView.Visibility != Visibility.Visible
+            && LightBoardView.Visibility != Visibility.Visible;
         bool hasEditorSelection = canInsert && isEditMode && MarkdownEditor.SelectionLength > 0;
 
         string insertButtonText = !canInsert ? "Insert (not possible here)"
