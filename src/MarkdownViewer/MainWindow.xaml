@@ -418,7 +418,10 @@
                                       HorizontalScrollBarVisibility="Auto"
                                       Focusable="False">
                             <!-- Each note has its own place (Canvas.Left/Top), tilt and stacking (Panel.ZIndex). Size set in code to fit the notes. -->
-                            <Canvas x:Name="PostItNotesCanvas" Margin="16,4,16,16" Background="Transparent" />
+                            <!-- Pinned to the top-left: the canvas is sized in code to fit its contents, and a fixed-size element would otherwise be
+                                 centred in the scroll area, leaving unusable bands above and to the left of it. -->
+                            <Canvas x:Name="PostItNotesCanvas" Margin="16,4,16,16" Background="Transparent"
+                                    HorizontalAlignment="Left" VerticalAlignment="Top" />
                         </ScrollViewer>
                     </DockPanel>
 
@@ -451,7 +454,10 @@
                                       HorizontalScrollBarVisibility="Auto"
                                       Focusable="False">
                             <!-- Each image has its own place (Canvas.Left/Top), size, rotation and stacking (Panel.ZIndex). Size set in code to fit the images. -->
-                            <Canvas x:Name="LightBoardCanvas" Margin="16,4,16,16" Background="Transparent" />
+                            <!-- Pinned to the top-left: the canvas is sized in code to fit its contents, and a fixed-size element would otherwise be
+                                 centred in the scroll area, leaving unusable bands above and to the left of it. -->
+                            <Canvas x:Name="LightBoardCanvas" Margin="16,4,16,16" Background="Transparent"
+                                    HorizontalAlignment="Left" VerticalAlignment="Top" />
                         </ScrollViewer>
                     </DockPanel>
                 </Grid>
